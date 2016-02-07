@@ -68,6 +68,11 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		super("Key Store", KeyStoreArtifact.class, new KeyStoreManager());
 	}
 
+	@Override
+	public String getCategory() {
+		return "Security";
+	}
+	
 	public enum UploadType {
 		CERTIFICATE,
 		JKS,
