@@ -39,11 +39,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import be.nabu.eai.developer.MainController;
-import be.nabu.eai.developer.managers.JDBCServiceGUIManager;
 import be.nabu.eai.developer.managers.base.BaseArtifactGUIInstance;
 import be.nabu.eai.developer.managers.base.BasePortableGUIManager;
 import be.nabu.eai.developer.managers.util.SimpleProperty;
 import be.nabu.eai.developer.managers.util.SimplePropertyUpdater;
+import be.nabu.eai.developer.util.EAIDeveloperUtils;
 import be.nabu.eai.repository.api.Entry;
 import be.nabu.eai.repository.api.ResourceEntry;
 import be.nabu.eai.repository.resources.RepositoryEntry;
@@ -130,7 +130,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}));
 				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
 				
-				JDBCServiceGUIManager.buildPopup(MainController.getInstance(), updater, "Create Self Signed", new EventHandler<MouseEvent>() {
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Create Self Signed", new EventHandler<MouseEvent>() {
 					@Override
 					public void handle(MouseEvent arg0) {
 						try {
@@ -176,7 +176,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					new SimpleProperty<byte[]>("Content", byte[].class, true)
 				}));
 				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-				JDBCServiceGUIManager.buildPopup(MainController.getInstance(), updater, "Add To Keystore", new EventHandler<MouseEvent>() {
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add To Keystore", new EventHandler<MouseEvent>() {
 					@Override
 					public void handle(MouseEvent arg0) {
 						String alias = updater.getValue("Alias");
@@ -213,7 +213,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					new SimpleProperty<StoreType>("Store Type", StoreType.class, true)
 				}));
 				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-				JDBCServiceGUIManager.buildPopup(MainController.getInstance(), updater, "Add To Keystore", new EventHandler<MouseEvent>() {
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add To Keystore", new EventHandler<MouseEvent>() {
 					@Override
 					public void handle(MouseEvent arg0) {
 						String password = updater.getValue("Password");
@@ -276,7 +276,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty }));
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, new ValueImpl<String>(aliasProperty, selectedItem.getAlias()));
-					JDBCServiceGUIManager.buildPopup(MainController.getInstance(), updater, "Rename " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Rename " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
 						@Override
 						public void handle(MouseEvent arg0) {
 							String alias = updater.getValue("Alias");
@@ -309,7 +309,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { fileProperty }));
 					String extension = "Private Key".equals(selectedItem.getType()) ? "pkcs12" : "pem";
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, new ValueImpl<File>(fileProperty, new File(selectedItem.getAlias() + "." + extension)));
-					JDBCServiceGUIManager.buildPopup(MainController.getInstance(), updater, "Download " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Download " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
 						@Override
 						public void handle(MouseEvent arg0) {
 							File file = updater.getValue("File");
@@ -362,7 +362,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 						new ValueImpl<File>(fileProperty, new File(selectedItem.getAlias() + ".pkcs10")),
 						new ValueImpl<SignatureType>(signatureProperty, SignatureType.SHA256WITHRSA)
 					);
-					JDBCServiceGUIManager.buildPopup(MainController.getInstance(), updater, "Generate PKCS10 for " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Generate PKCS10 for " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
 						@Override
 						public void handle(MouseEvent arg0) {
 							File file = updater.getValue("File");
@@ -409,7 +409,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, contentProperty, durationProperty, signatureProperty }));
 					
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-					JDBCServiceGUIManager.buildPopup(MainController.getInstance(), updater, "Sign PKCS10 using " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Sign PKCS10 using " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
 						@Override
 						public void handle(MouseEvent arg0) {
 							String alias = updater.getValue("Alias");
@@ -455,7 +455,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					SimpleProperty<String> password = new SimpleProperty<String>("Password", String.class, false);
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { password }));
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(false, properties, new ValueImpl<String>(password, keystore.getKeyStore().getPassword()));
-					JDBCServiceGUIManager.buildPopup(MainController.getInstance(), updater, "Password", null);
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Password", null);
 				}
 				catch (Exception e) {
 					logger.error("Could not show password", e);
