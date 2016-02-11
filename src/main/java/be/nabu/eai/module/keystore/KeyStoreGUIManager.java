@@ -462,8 +462,60 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
+		
+		final Button addChain = new Button("Add Key Chain");
+		addChain.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+			@SuppressWarnings({ "unchecked", "rawtypes" })
+			@Override
+			public void handle(MouseEvent arg0) {
+				final KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
+				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
+					SimpleProperty<Integer> amountOfCertificatesProperty = new SimpleProperty<Integer>("Amount Of Certificates", Integer.class, true);
+					final SimplePropertyUpdater chooseAmountUpdater = new SimplePropertyUpdater(true, new LinkedHashSet(Arrays.asList(new Property [] { amountOfCertificatesProperty })));
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), chooseAmountUpdater, "Amount of certificates in chain", new EventHandler<MouseEvent>() {
+						@Override
+						public void handle(MouseEvent arg0) {
+							int amountOfCertificates = chooseAmountUpdater.getValue("Amount Of Certificates");
+							SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
+							SimpleProperty<String> passwordProperty = new SimpleProperty<String>("Password", String.class, false);
+							Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, passwordProperty }));
+							for (int i = 0; i < amountOfCertificates; i++) {
+								SimpleProperty<byte[]> certificateProperty = new SimpleProperty<byte[]>("Certificate[" + i + "]", byte[].class, true);
+								properties.add(certificateProperty);
+							}
+							final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+							EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add new chain to private key " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+								@Override
+								public void handle(MouseEvent arg0) {
+									String alias = updater.getValue("Alias");
+									if (alias == null) {
+										alias = selectedItem.getAlias();
+									}
+									String password = updater.getValue("Password");
+									try {
+										X509Certificate [] certificates = new X509Certificate[amountOfCertificates];
+										for (int i = 0; i < amountOfCertificates; i++) {
+											byte [] bytes = updater.getValue("Certificate[" + i + "]");
+											certificates[i] = SecurityUtils.parseCertificate(new ByteArrayInputStream(bytes));
+										}
+										PrivateKey privateKey = (PrivateKey) keystore.getKeyStore().getPrivateKey(selectedItem.getAlias());
+										keystore.getKeyStore().set(alias, privateKey, certificates, password);
+										MainController.getInstance().setChanged();
+										table.getItems().clear();
+										table.getItems().addAll(toEntries(keystore.getKeyStore()));
+									}
+									catch (Exception e) {
+										logger.error("Could not update certificate chain", e);
+									}
+								}
+							});
+						}
+					});
+				}
+			}
+		});
 
-		buttons.getChildren().addAll(newSelfSigned, download, addCertificate, addKeystore, rename, delete, generatePKCS10, signPKCS10, showPassword);
+		buttons.getChildren().addAll(newSelfSigned, download, addCertificate, addKeystore, rename, delete, generatePKCS10, signPKCS10, showPassword, addChain);
 		vbox.getChildren().addAll(buttons, table);
 		AnchorPane.setLeftAnchor(vbox, 0d);
 		AnchorPane.setRightAnchor(vbox, 0d);
