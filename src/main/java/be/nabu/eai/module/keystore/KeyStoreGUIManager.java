@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
@@ -463,55 +465,75 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			}
 		});
 		
-		final Button addChain = new Button("Add Key Chain");
+		final Button addChain = new Button("Add Private Key");
+		table.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<KeyStoreEntry>() {
+			@Override
+			public void changed(ObservableValue<? extends KeyStoreEntry> arg0, KeyStoreEntry arg1, KeyStoreEntry selectedItem) {
+				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
+					addChain.setText("Add Key Chain");
+				}
+				else {
+					addChain.setText("Add Private Key");
+				}
+			}
+		});
 		addChain.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
 			public void handle(MouseEvent arg0) {
 				final KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
-				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
-					SimpleProperty<Integer> amountOfCertificatesProperty = new SimpleProperty<Integer>("Amount Of Certificates", Integer.class, true);
-					final SimplePropertyUpdater chooseAmountUpdater = new SimplePropertyUpdater(true, new LinkedHashSet(Arrays.asList(new Property [] { amountOfCertificatesProperty })));
-					EAIDeveloperUtils.buildPopup(MainController.getInstance(), chooseAmountUpdater, "Amount of certificates in chain", new EventHandler<MouseEvent>() {
-						@Override
-						public void handle(MouseEvent arg0) {
-							int amountOfCertificates = chooseAmountUpdater.getValue("Amount Of Certificates");
-							SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
-							SimpleProperty<String> passwordProperty = new SimpleProperty<String>("Password", String.class, false);
-							Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, passwordProperty }));
-							for (int i = 0; i < amountOfCertificates; i++) {
-								SimpleProperty<byte[]> certificateProperty = new SimpleProperty<byte[]>("Certificate[" + i + "]", byte[].class, true);
-								properties.add(certificateProperty);
-							}
-							final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-							EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add new chain to private key " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
-								@Override
-								public void handle(MouseEvent arg0) {
-									String alias = updater.getValue("Alias");
-									if (alias == null) {
-										alias = selectedItem.getAlias();
-									}
-									String password = updater.getValue("Password");
-									try {
-										X509Certificate [] certificates = new X509Certificate[amountOfCertificates];
-										for (int i = 0; i < amountOfCertificates; i++) {
-											byte [] bytes = updater.getValue("Certificate[" + i + "]");
-											certificates[i] = SecurityUtils.parseCertificate(new ByteArrayInputStream(bytes));
-										}
-										PrivateKey privateKey = (PrivateKey) keystore.getKeyStore().getPrivateKey(selectedItem.getAlias());
-										keystore.getKeyStore().set(alias, privateKey, certificates, password);
-										MainController.getInstance().setChanged();
-										table.getItems().clear();
-										table.getItems().addAll(toEntries(keystore.getKeyStore()));
-									}
-									catch (Exception e) {
-										logger.error("Could not update certificate chain", e);
-									}
-								}
-							});
+				SimpleProperty<Integer> amountOfCertificatesProperty = new SimpleProperty<Integer>("Amount Of Certificates", Integer.class, true);
+				final SimplePropertyUpdater chooseAmountUpdater = new SimplePropertyUpdater(true, new LinkedHashSet(Arrays.asList(new Property [] { amountOfCertificatesProperty })));
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), chooseAmountUpdater, "Amount of certificates in chain", new EventHandler<MouseEvent>() {
+					@Override
+					public void handle(MouseEvent arg0) {
+						int amountOfCertificates = chooseAmountUpdater.getValue("Amount Of Certificates");
+						SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
+						SimpleProperty<String> passwordProperty = new SimpleProperty<String>("Password", String.class, false);
+						Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, passwordProperty }));
+						boolean isPrivateKey = selectedItem != null && "Private Key".equals(selectedItem.getType());
+						// if we did not select a private key, add it
+						if (!isPrivateKey) {
+							SimpleProperty<byte[]> keyProperty = new SimpleProperty<byte[]>("Private Key", byte[].class, true);
+							properties.add(keyProperty);
 						}
-					});
-				}
+						for (int i = 0; i < amountOfCertificates; i++) {
+							SimpleProperty<byte[]> certificateProperty = new SimpleProperty<byte[]>("Certificate[" + i + "]", byte[].class, true);
+							properties.add(certificateProperty);
+						}
+						final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+						EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, isPrivateKey ? "Add new chain to private key " + selectedItem.getAlias() : "Add a new private key", new EventHandler<MouseEvent>() {
+							@Override
+							public void handle(MouseEvent arg0) {
+								String alias = updater.getValue("Alias");
+								if (alias == null) {
+									alias = selectedItem.getAlias();
+								}
+								String password = updater.getValue("Password");
+								try {
+									X509Certificate [] certificates = new X509Certificate[amountOfCertificates];
+									for (int i = 0; i < amountOfCertificates; i++) {
+										byte [] bytes = updater.getValue("Certificate[" + i + "]");
+										certificates[i] = SecurityUtils.parseCertificate(new ByteArrayInputStream(bytes));
+									}
+									byte [] keyBytes = updater.getValue("Private Key");
+									// try to check if it is encoded
+									if (keyBytes[0] == '-' && keyBytes[1] == '-') {
+										keyBytes = SecurityUtils.decode(new String(keyBytes, "ASCII"));
+									}
+									PrivateKey privateKey = keyBytes == null ? (PrivateKey) keystore.getKeyStore().getPrivateKey(selectedItem.getAlias()) : SecurityUtils.parsePKCS8Private(KeyPairType.RSA, keyBytes);
+									keystore.getKeyStore().set(alias, privateKey, certificates, password);
+									MainController.getInstance().setChanged();
+									table.getItems().clear();
+									table.getItems().addAll(toEntries(keystore.getKeyStore()));
+								}
+								catch (Exception e) {
+									logger.error("Could not update certificate chain", e);
+								}
+							}
+						});
+					}
+				});
 			}
 		});
 
