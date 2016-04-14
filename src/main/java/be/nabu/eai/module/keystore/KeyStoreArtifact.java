@@ -96,7 +96,7 @@ public class KeyStoreArtifact implements Artifact {
 					keystore = new ManagedKeyStoreImpl(
 						new ResourceConfigurationHandler((ReadableResource) getConfigurationResource()), 
 						target, 
-						configuration, 
+						getConfiguration(), 
 						KeyStoreHandler.create(getConfiguration().getPassword(), StoreType.JKS)
 					);
 				}
@@ -104,7 +104,7 @@ public class KeyStoreArtifact implements Artifact {
 					ReadableContainer<ByteBuffer> input = new ResourceReadableContainer((ReadableResource) target);
 					try {
 						KeyStoreHandler handler = KeyStoreHandler.load(IOUtils.toInputStream(input), getConfiguration().getPassword(), StoreType.JKS);
-						keystore = new ManagedKeyStoreImpl(new ResourceConfigurationHandler((ReadableResource) getConfigurationResource()), target, configuration, handler);
+						keystore = new ManagedKeyStoreImpl(new ResourceConfigurationHandler((ReadableResource) getConfigurationResource()), target, getConfiguration(), handler);
 					}
 					finally {
 						input.close();

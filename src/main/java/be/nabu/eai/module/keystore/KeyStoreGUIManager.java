@@ -204,6 +204,50 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			}
 		});
 		
+		final Button keyPassword = new Button("Key Password");
+		keyPassword.setDisable(true);
+		keyPassword.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+			@SuppressWarnings({ "rawtypes", "unchecked" })
+			@Override
+			public void handle(MouseEvent arg0) {
+				KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
+				if (selectedItem != null && selectedItem.getAlias() != null) {
+					try {
+						SimpleProperty<String> passwordProperty = new SimpleProperty<String>("Password", String.class, false);
+						Set properties = new LinkedHashSet(Arrays.asList(new Property [] {
+							passwordProperty,
+						}));
+						final String alias = selectedItem.getAlias();
+						final String currentPassword = keystore.getKeyStore().getPassword(alias);
+						final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, new ValueImpl<String>(passwordProperty, currentPassword));
+						EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Key Password", new EventHandler<MouseEvent>() {
+							@Override
+							public void handle(MouseEvent arg0) {
+								String password = updater.getValue("Password");
+								if ((password == null && currentPassword != null) || (password != null && !password.equals(currentPassword))) {
+									try {
+										keystore.getKeyStore().set(
+											alias, 
+											keystore.getKeyStore().getPrivateKey(alias), 
+											keystore.getKeyStore().getChain(alias), 
+											password
+										);
+										MainController.getInstance().setChanged();
+									}
+									catch (Exception e) {
+										throw new RuntimeException(e);		
+									}
+								}
+							}
+						});
+					}
+					catch (Exception e) {
+						throw new RuntimeException(e);
+					}
+				}
+			}
+		});
+		
 		Button addKeystore = new Button("Add Keystore");
 		addKeystore.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -471,9 +515,11 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			public void changed(ObservableValue<? extends KeyStoreEntry> arg0, KeyStoreEntry arg1, KeyStoreEntry selectedItem) {
 				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
 					addChain.setText("Add Key Chain");
+					keyPassword.setDisable(false);
 				}
 				else {
 					addChain.setText("Add Private Key");
+					keyPassword.setDisable(true);
 				}
 			}
 		});
@@ -537,7 +583,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			}
 		});
 
-		buttons.getChildren().addAll(newSelfSigned, download, addCertificate, addKeystore, rename, delete, generatePKCS10, signPKCS10, showPassword, addChain);
+		buttons.getChildren().addAll(newSelfSigned, download, addCertificate, addKeystore, rename, delete, generatePKCS10, signPKCS10, showPassword, addChain, keyPassword);
 		vbox.getChildren().addAll(buttons, table);
 		AnchorPane.setLeftAnchor(vbox, 0d);
 		AnchorPane.setRightAnchor(vbox, 0d);
