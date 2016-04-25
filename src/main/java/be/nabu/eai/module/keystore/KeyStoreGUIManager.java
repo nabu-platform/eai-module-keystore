@@ -2,11 +2,13 @@ package be.nabu.eai.module.keystore;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -402,6 +404,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
 					SimpleProperty<File> fileProperty = new SimpleProperty<File>("File", File.class, true);
 					SimpleProperty<SignatureType> signatureProperty = new SimpleProperty<SignatureType>("Signature Type", SignatureType.class, true);
+					SimpleProperty<Boolean> encode = new SimpleProperty<Boolean>("Encode as base64", Boolean.class, true);
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { fileProperty, signatureProperty }));
 					
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, 
@@ -418,10 +421,16 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 							}
 							if (file != null) {
 								try {
+									Boolean encode = updater.getValue("Encode as base64");
 									PrivateKey privateKey = (PrivateKey) keystore.getKeyStore().getPrivateKey(selectedItem.getAlias());
 									PublicKey publicKey = keystore.getKeyStore().getChain(selectedItem.getAlias())[0].getPublicKey();
 									KeyPair pair = new KeyPair(publicKey, privateKey);
 									byte[] generatePKCS10 = BCSecurityUtils.generatePKCS10(pair, type, keystore.getKeyStore().getChain(selectedItem.getAlias())[0].getSubjectX500Principal());
+									if (encode != null && encode) {
+										StringWriter output = new StringWriter();
+										BCSecurityUtils.encodePKCS10(new ByteArrayInputStream(generatePKCS10), output);
+										generatePKCS10 = output.toString().getBytes("UTF-8");
+									}
 									OutputStream output = new BufferedOutputStream(new FileOutputStream(file));
 									try {
 										output.write(generatePKCS10);
