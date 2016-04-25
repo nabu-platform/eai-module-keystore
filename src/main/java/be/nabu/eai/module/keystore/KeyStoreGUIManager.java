@@ -573,7 +573,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 									}
 									byte [] keyBytes = updater.getValue("Private Key");
 									// try to check if it is encoded
-									if (keyBytes[0] == '-' && keyBytes[1] == '-') {
+									if (keyBytes != null && keyBytes[0] == '-' && keyBytes[1] == '-') {
 										keyBytes = SecurityUtils.decode(new String(keyBytes, "ASCII"));
 									}
 									PrivateKey privateKey = keyBytes == null ? (PrivateKey) keystore.getKeyStore().getPrivateKey(selectedItem.getAlias()) : SecurityUtils.parsePKCS8Private(KeyPairType.RSA, keyBytes);
