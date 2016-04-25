@@ -405,7 +405,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					SimpleProperty<File> fileProperty = new SimpleProperty<File>("File", File.class, true);
 					SimpleProperty<SignatureType> signatureProperty = new SimpleProperty<SignatureType>("Signature Type", SignatureType.class, true);
 					SimpleProperty<Boolean> encode = new SimpleProperty<Boolean>("Encode as base64", Boolean.class, true);
-					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { fileProperty, signatureProperty }));
+					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { fileProperty, signatureProperty, encode }));
 					
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, 
 						new ValueImpl<File>(fileProperty, new File(selectedItem.getAlias() + ".pkcs10")),
