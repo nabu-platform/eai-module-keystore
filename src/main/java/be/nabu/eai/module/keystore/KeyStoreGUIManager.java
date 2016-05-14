@@ -2,7 +2,6 @@ package be.nabu.eai.module.keystore;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
@@ -26,12 +25,12 @@ import java.util.UUID;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -116,10 +115,10 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		VBox vbox = new VBox();
 		HBox buttons = new HBox();
 		Button newSelfSigned = new Button("New Self Signed");
-		newSelfSigned.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		newSelfSigned.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "rawtypes", "unchecked" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				Set properties = new LinkedHashSet(Arrays.asList(new Property [] {
 					new SimpleProperty<String>("Key Alias", String.class, false),
 					new SimpleProperty<String>("Certificate Alias", String.class, false),
@@ -134,9 +133,9 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}));
 				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
 				
-				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Create Self Signed", new EventHandler<MouseEvent>() {
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Create Self Signed", new EventHandler<ActionEvent>() {
 					@Override
-					public void handle(MouseEvent arg0) {
+					public void handle(ActionEvent arg0) {
 						try {
 							int keysize = updater.getValue("Keysize") == null ? 2048 : updater.getValue("Keysize");
 							KeyPair keyPair = SecurityUtils.generateKeyPair(KeyPairType.RSA, keysize);
@@ -171,18 +170,18 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 	
 		Button addCertificate = new Button("Add Certificate");
-		addCertificate.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		addCertificate.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				Set properties = new LinkedHashSet(Arrays.asList(new Property [] {
 					new SimpleProperty<String>("Alias", String.class, false),
 					new SimpleProperty<byte[]>("Content", byte[].class, true)
 				}));
 				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add To Keystore", new EventHandler<MouseEvent>() {
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add To Keystore", new EventHandler<ActionEvent>() {
 					@Override
-					public void handle(MouseEvent arg0) {
+					public void handle(ActionEvent arg0) {
 						String alias = updater.getValue("Alias");
 						byte [] content = updater.getValue("Content");
 						if (alias == null) {
@@ -208,10 +207,10 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		
 		final Button keyPassword = new Button("Key Password");
 		keyPassword.setDisable(true);
-		keyPassword.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		keyPassword.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "rawtypes", "unchecked" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
 				if (selectedItem != null && selectedItem.getAlias() != null) {
 					try {
@@ -222,9 +221,9 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 						final String alias = selectedItem.getAlias();
 						final String currentPassword = keystore.getKeyStore().getPassword(alias);
 						final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, new ValueImpl<String>(passwordProperty, currentPassword));
-						EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Key Password", new EventHandler<MouseEvent>() {
+						EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Key Password", new EventHandler<ActionEvent>() {
 							@Override
-							public void handle(MouseEvent arg0) {
+							public void handle(ActionEvent arg0) {
 								String password = updater.getValue("Password");
 								if ((password == null && currentPassword != null) || (password != null && !password.equals(currentPassword))) {
 									try {
@@ -251,19 +250,19 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 		
 		Button addKeystore = new Button("Add Keystore");
-		addKeystore.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		addKeystore.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				Set properties = new LinkedHashSet(Arrays.asList(new Property [] {
 					new SimpleProperty<byte[]>("Content", byte[].class, true),
 					new SimpleProperty<String>("Password", String.class, false),
 					new SimpleProperty<StoreType>("Store Type", StoreType.class, true)
 				}));
 				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add To Keystore", new EventHandler<MouseEvent>() {
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add To Keystore", new EventHandler<ActionEvent>() {
 					@Override
-					public void handle(MouseEvent arg0) {
+					public void handle(ActionEvent arg0) {
 						String password = updater.getValue("Password");
 						StoreType type = updater.getValue("Store Type");
 						byte [] content = updater.getValue("Content");
@@ -295,9 +294,9 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 		
 		Button delete = new Button("Delete");
-		delete.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		delete.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
 				if (selectedItem != null) {
 					try {
@@ -315,18 +314,18 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 		
 		Button rename = new Button("Rename");
-		rename.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		rename.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
 				if (selectedItem != null) {
 					SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty }));
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, new ValueImpl<String>(aliasProperty, selectedItem.getAlias()));
-					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Rename " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Rename " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
 						@Override
-						public void handle(MouseEvent arg0) {
+						public void handle(ActionEvent arg0) {
 							String alias = updater.getValue("Alias");
 							if (alias != null && !alias.isEmpty() && !selectedItem.getAlias().equals(alias)) {
 								try {
@@ -347,19 +346,19 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 		
 		Button download = new Button("Download");
-		download.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		download.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
 				if (selectedItem != null) {
 					SimpleProperty<File> fileProperty = new SimpleProperty<File>("File", File.class, true);
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { fileProperty }));
 					String extension = "Private Key".equals(selectedItem.getType()) ? "pkcs12" : "pem";
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, new ValueImpl<File>(fileProperty, new File(selectedItem.getAlias() + "." + extension)));
-					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Download " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Download " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
 						@Override
-						public void handle(MouseEvent arg0) {
+						public void handle(ActionEvent arg0) {
 							File file = updater.getValue("File");
 							if (file != null) {
 								try {
@@ -396,10 +395,10 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 		
 		Button generatePKCS10 = new Button("Generate PKCS10");
-		generatePKCS10.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		generatePKCS10.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
 				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
 					SimpleProperty<File> fileProperty = new SimpleProperty<File>("File", File.class, true);
@@ -411,9 +410,9 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 						new ValueImpl<File>(fileProperty, new File(selectedItem.getAlias() + ".pkcs10")),
 						new ValueImpl<SignatureType>(signatureProperty, SignatureType.SHA256WITHRSA)
 					);
-					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Generate PKCS10 for " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Generate PKCS10 for " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
 						@Override
-						public void handle(MouseEvent arg0) {
+						public void handle(ActionEvent arg0) {
 							File file = updater.getValue("File");
 							SignatureType type = updater.getValue("Signature Type");
 							if (type == null) {
@@ -451,10 +450,10 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 		
 		Button signPKCS10 = new Button("Sign PKCS10");
-		signPKCS10.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		signPKCS10.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
 				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
 					SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
@@ -464,9 +463,9 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, contentProperty, durationProperty, signatureProperty }));
 					
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Sign PKCS10 using " + selectedItem.getAlias(), new EventHandler<MouseEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Sign PKCS10 using " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
 						@Override
-						public void handle(MouseEvent arg0) {
+						public void handle(ActionEvent arg0) {
 							String alias = updater.getValue("Alias");
 							byte [] content = updater.getValue("PKCS10");
 							Duration duration = updater.getValue("Duration");
@@ -502,10 +501,10 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 		
 		final Button showPassword = new Button("Show Password");
-		showPassword.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		showPassword.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				try {
 					SimpleProperty<String> password = new SimpleProperty<String>("Password", String.class, false);
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { password }));
@@ -532,16 +531,16 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
-		addChain.addEventHandler(MouseEvent.MOUSE_CLICKED, new EventHandler<MouseEvent>() {
+		addChain.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
-			public void handle(MouseEvent arg0) {
+			public void handle(ActionEvent arg0) {
 				final KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
 				SimpleProperty<Integer> amountOfCertificatesProperty = new SimpleProperty<Integer>("Amount Of Certificates", Integer.class, true);
 				final SimplePropertyUpdater chooseAmountUpdater = new SimplePropertyUpdater(true, new LinkedHashSet(Arrays.asList(new Property [] { amountOfCertificatesProperty })));
-				EAIDeveloperUtils.buildPopup(MainController.getInstance(), chooseAmountUpdater, "Amount of certificates in chain", new EventHandler<MouseEvent>() {
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), chooseAmountUpdater, "Amount of certificates in chain", new EventHandler<ActionEvent>() {
 					@Override
-					public void handle(MouseEvent arg0) {
+					public void handle(ActionEvent arg0) {
 						int amountOfCertificates = chooseAmountUpdater.getValue("Amount Of Certificates");
 						SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
 						SimpleProperty<String> passwordProperty = new SimpleProperty<String>("Password", String.class, false);
@@ -557,9 +556,9 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 							properties.add(certificateProperty);
 						}
 						final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-						EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, isPrivateKey ? "Add new chain to private key " + selectedItem.getAlias() : "Add a new private key", new EventHandler<MouseEvent>() {
+						EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, isPrivateKey ? "Add new chain to private key " + selectedItem.getAlias() : "Add a new private key", new EventHandler<ActionEvent>() {
 							@Override
-							public void handle(MouseEvent arg0) {
+							public void handle(ActionEvent arg0) {
 								String alias = updater.getValue("Alias");
 								if (alias == null) {
 									alias = selectedItem.getAlias();
