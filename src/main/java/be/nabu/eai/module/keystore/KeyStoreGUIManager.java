@@ -458,8 +458,8 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			}
 		});
 		
-		Button signPKCS10 = new Button("Sign PKCS10");
-		signPKCS10.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+		Button signPKCS10Entity = new Button("Sign PKCS10 (Entity)");
+		signPKCS10Entity.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
 			public void handle(ActionEvent arg0) {
@@ -472,7 +472,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, contentProperty, durationProperty, signatureProperty }));
 					
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
-					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Sign PKCS10 using " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Sign PKCS10 as entity using " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
 						@Override
 						public void handle(ActionEvent arg0) {
 							String alias = updater.getValue("Alias");
@@ -509,6 +509,57 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			}
 		});
 		
+		Button signPKCS10Intermediate = new Button("Sign PKCS10 (Intermediate CA)");
+		signPKCS10Intermediate.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@SuppressWarnings({ "unchecked", "rawtypes" })
+			@Override
+			public void handle(ActionEvent arg0) {
+				KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
+				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
+					SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
+					SimpleProperty<byte[]> contentProperty = new SimpleProperty<byte[]>("PKCS10", byte[].class, true);
+					SimpleProperty<Duration> durationProperty = new SimpleProperty<Duration>("Duration", Duration.class, false);
+					SimpleProperty<SignatureType> signatureProperty = new SimpleProperty<SignatureType>("Signature Type", SignatureType.class, true);
+					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, contentProperty, durationProperty, signatureProperty }));
+					
+					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Sign PKCS10 as intermediate using " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
+						@Override
+						public void handle(ActionEvent arg0) {
+							String alias = updater.getValue("Alias");
+							byte [] content = updater.getValue("PKCS10");
+							Duration duration = updater.getValue("Duration");
+							SignatureType type = updater.getValue("Signature Type");
+							if (type == null) {
+								type = SignatureType.SHA256WITHRSA;
+							}
+							if (duration == null) {
+								duration = Duration.TWO_YEARS;
+							}
+							if (alias == null) {
+								alias = UUID.randomUUID().toString().replace("-", "");
+							}
+							if (content != null) {
+								try {
+									PrivateKey privateKey = (PrivateKey) keystore.getKeyStore().getPrivateKey(selectedItem.getAlias());
+									X500Principal principal = keystore.getKeyStore().getChain(selectedItem.getAlias())[0].getSubjectX500Principal();
+									X509Certificate certificate = BCSecurityUtils.signPKCS10AsIntermediate(content, new Date(new Date().getTime() + duration.getMs()), principal, privateKey, type, keystore.getKeyStore().getChain(selectedItem.getAlias())[0]);
+									keystore.getKeyStore().set(alias, certificate);
+									MainController.getInstance().setChanged();
+									table.getItems().clear();
+									table.getItems().addAll(toEntries(keystore.getKeyStore()));
+								}
+								catch (Exception e) {
+									MainController.getInstance().notify(new ValidationMessage(Severity.ERROR, "Failed: " + e.getMessage()));
+									logger.error("Could not rename: " + selectedItem.getAlias(), e);
+								}
+							}
+						}
+					});
+				}
+			}
+		});
+		
 		final Button showPassword = new Button("Show Password");
 		showPassword.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -527,19 +578,6 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		});
 		
 		final Button addChain = new Button("Add Private Key");
-		table.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<KeyStoreEntry>() {
-			@Override
-			public void changed(ObservableValue<? extends KeyStoreEntry> arg0, KeyStoreEntry arg1, KeyStoreEntry selectedItem) {
-				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
-					addChain.setText("Add Key Chain");
-					keyPassword.setDisable(false);
-				}
-				else {
-					addChain.setText("Add Private Key");
-					keyPassword.setDisable(true);
-				}
-			}
-		});
 		addChain.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			@Override
@@ -600,7 +638,25 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			}
 		});
 
-		buttons.getChildren().addAll(newSelfSigned, download, addCertificate, addKeystore, rename, delete, generatePKCS10, signPKCS10, showPassword, addChain, keyPassword);
+		table.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<KeyStoreEntry>() {
+			@Override
+			public void changed(ObservableValue<? extends KeyStoreEntry> arg0, KeyStoreEntry arg1, KeyStoreEntry selectedItem) {
+				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
+					addChain.setText("Add Key Chain");
+					keyPassword.setDisable(false);
+					signPKCS10Entity.setDisable(false);
+					signPKCS10Intermediate.setDisable(false);
+				}
+				else {
+					addChain.setText("Add Private Key");
+					keyPassword.setDisable(true);
+					signPKCS10Entity.setDisable(true);
+					signPKCS10Intermediate.setDisable(true);
+				}
+			}
+		});
+		
+		buttons.getChildren().addAll(newSelfSigned, download, addCertificate, addKeystore, rename, delete, generatePKCS10, signPKCS10Entity, signPKCS10Intermediate, showPassword, addChain, keyPassword);
 		vbox.getChildren().addAll(buttons, table);
 		AnchorPane.setLeftAnchor(vbox, 0d);
 		AnchorPane.setRightAnchor(vbox, 0d);
