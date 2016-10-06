@@ -519,8 +519,9 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					SimpleProperty<String> aliasProperty = new SimpleProperty<String>("Alias", String.class, false);
 					SimpleProperty<byte[]> contentProperty = new SimpleProperty<byte[]>("PKCS10", byte[].class, true);
 					SimpleProperty<Duration> durationProperty = new SimpleProperty<Duration>("Duration", Duration.class, false);
+					SimpleProperty<Integer> pathLengthProperty = new SimpleProperty<Integer>("Path Length", Integer.class, false);
 					SimpleProperty<SignatureType> signatureProperty = new SimpleProperty<SignatureType>("Signature Type", SignatureType.class, true);
-					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, contentProperty, durationProperty, signatureProperty }));
+					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { aliasProperty, contentProperty, durationProperty, signatureProperty, pathLengthProperty }));
 					
 					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
 					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Sign PKCS10 as intermediate using " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
@@ -530,6 +531,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 							byte [] content = updater.getValue("PKCS10");
 							Duration duration = updater.getValue("Duration");
 							SignatureType type = updater.getValue("Signature Type");
+							Integer pathLength = updater.getValue("Path Length");
 							if (type == null) {
 								type = SignatureType.SHA256WITHRSA;
 							}
@@ -543,7 +545,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 								try {
 									PrivateKey privateKey = (PrivateKey) keystore.getKeyStore().getPrivateKey(selectedItem.getAlias());
 									X500Principal principal = keystore.getKeyStore().getChain(selectedItem.getAlias())[0].getSubjectX500Principal();
-									X509Certificate certificate = BCSecurityUtils.signPKCS10AsIntermediate(content, new Date(new Date().getTime() + duration.getMs()), principal, privateKey, type, keystore.getKeyStore().getChain(selectedItem.getAlias())[0]);
+									X509Certificate certificate = BCSecurityUtils.signPKCS10AsIntermediate(content, new Date(new Date().getTime() + duration.getMs()), principal, privateKey, type, keystore.getKeyStore().getChain(selectedItem.getAlias())[0], pathLength);
 									keystore.getKeyStore().set(alias, certificate);
 									MainController.getInstance().setChanged();
 									table.getItems().clear();
