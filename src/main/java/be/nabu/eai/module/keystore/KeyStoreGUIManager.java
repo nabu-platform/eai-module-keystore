@@ -364,7 +364,15 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					SimpleProperty<File> fileProperty = new SimpleProperty<File>("File", File.class, true);
 					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { fileProperty }));
 					String extension = "Private Key".equals(selectedItem.getType()) ? "pkcs12" : "pem";
-					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, new ValueImpl<File>(fileProperty, new File(selectedItem.getAlias() + "." + extension)));
+					SimpleProperty<String> password = new SimpleProperty<String>("Password", String.class, false);
+					SimpleProperty<Boolean> includeKey = new SimpleProperty<Boolean>("Include Private Key", Boolean.class, false);
+					if (extension.equals("pkcs12")) {
+						properties.add(password);
+						properties.add(includeKey);
+					}
+					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, 
+						new ValueImpl<Boolean>(includeKey, true),
+						new ValueImpl<File>(fileProperty, new File(selectedItem.getAlias() + "." + extension)));
 					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Download " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
 						@Override
 						public void handle(ActionEvent arg0) {
@@ -381,11 +389,31 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 										}
 									}
 									else if (keystore.getKeyStore().getKeyStore().entryInstanceOf(selectedItem.getAlias(), KeyStore.PrivateKeyEntry.class)) {
-										KeyStoreHandler temporary = KeyStoreHandler.create(keystore.getKeyStore().getPassword(), StoreType.PKCS12);
-										temporary.set(selectedItem.getAlias(), keystore.getKeyStore().getPrivateKey(selectedItem.getAlias()), keystore.getKeyStore().getChain(selectedItem.getAlias()), null);
+										Boolean includeKey = updater.getValue("Include Private Key");
+										String password = updater.getValue("Password");
+										KeyStoreHandler temporary = KeyStoreHandler.create(password, StoreType.PKCS12);
+										if (includeKey == null || includeKey) {
+											temporary.set(selectedItem.getAlias(), keystore.getKeyStore().getPrivateKey(selectedItem.getAlias()), keystore.getKeyStore().getChain(selectedItem.getAlias()), null);
+										}
+										else {
+											int counter = 0;
+											X509Certificate[] chain = keystore.getKeyStore().getChain(selectedItem.getAlias());
+											for (X509Certificate certificate : chain) {
+												if (counter == 0) {
+													temporary.set("self", certificate);
+												}
+												else if (counter == chain.length - 1) {
+													temporary.set("root", certificate);
+												}
+												else {
+													temporary.set("intermediate" + counter, certificate);
+												}
+												counter++;
+											}
+										}
 										OutputStream output = new BufferedOutputStream(new FileOutputStream(file));
 										try {
-											temporary.save(output, keystore.getKeyStore().getPassword());
+											temporary.save(output, password);
 										}
 										finally {
 											output.close();
