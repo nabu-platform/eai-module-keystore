@@ -46,7 +46,9 @@ import be.nabu.eai.developer.managers.base.BaseArtifactGUIInstance;
 import be.nabu.eai.developer.managers.base.BasePortableGUIManager;
 import be.nabu.eai.developer.managers.util.SimpleProperty;
 import be.nabu.eai.developer.managers.util.SimplePropertyUpdater;
+import be.nabu.eai.developer.util.Confirm;
 import be.nabu.eai.developer.util.EAIDeveloperUtils;
+import be.nabu.eai.developer.util.Confirm.ConfirmType;
 import be.nabu.eai.repository.api.Entry;
 import be.nabu.eai.repository.api.ResourceEntry;
 import be.nabu.eai.repository.resources.RepositoryEntry;
@@ -667,27 +669,110 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
+		
+		final Button addPKCS7 = new Button("Add PKCS7");
+		addPKCS7.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@SuppressWarnings({ "unchecked", "rawtypes" })
+			@Override
+			public void handle(ActionEvent arg0) {
+				final KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
+				boolean isPrivateKey = selectedItem != null && "Private Key".equals(selectedItem.getType());
+				
+				SimpleProperty<byte[]> keyProperty = new SimpleProperty<byte[]>("PKCS7", byte[].class, true);
+				Set properties = new LinkedHashSet(Arrays.asList(keyProperty));
+				// can set a new alias for the new key
+				if (isPrivateKey) {
+					properties.add(new SimpleProperty<String>("Alias", String.class, false));
+					properties.add(new SimpleProperty<String>("Password", String.class, false));
+				}
+				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, isPrivateKey ? "Add new chain to private key " + selectedItem.getAlias() : "Add new certificates", new EventHandler<ActionEvent>() {
+					@Override
+					public void handle(ActionEvent arg0) {
+						try {
+							byte [] keyBytes = updater.getValue("PKCS7");
+							List<X509Certificate> certificates = BCSecurityUtils.parsePKCS7Certificates(keyBytes);
+							if (certificates.isEmpty()) {
+								throw new IllegalArgumentException("No certificates found");
+							}
+							if (isPrivateKey) {
+								String alias = updater.getValue("Alias");
+								if (alias == null) {
+									alias = selectedItem.getAlias();
+								}
+								String password = updater.getValue("Password");
+								PrivateKey key = (PrivateKey) keystore.getKeyStore().getPrivateKey(selectedItem.getAlias());
+								List<X509Certificate> orderChain = SecurityUtils.orderChain(certificates);
+								keystore.getKeyStore().set(alias, key, orderChain.toArray(new X509Certificate[0]), password);
+							}
+							else {
+								int counter = 0;
+								for (X509Certificate certificate : certificates) {
+									keystore.getKeyStore().set("imported-certificate-" + counter++, certificate);
+								}
+							}
+							MainController.getInstance().setChanged();
+							table.getItems().clear();
+							table.getItems().addAll(toEntries(keystore.getKeyStore()));
+						}
+						catch (Exception e) {
+							MainController.getInstance().notify(e);
+						}
+					}
+				});
+			}
+		});
+		
+		final Button showChain = new Button("Show Chain");
+		showChain.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent arg0) {
+				final KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
+				boolean isPrivateKey = selectedItem != null && "Private Key".equals(selectedItem.getType());
+				if (isPrivateKey) {
+					try {
+						StringBuilder builder = new StringBuilder();
+						int counter = 0;
+						for (X509Certificate certificate : keystore.getKeyStore().getChain(selectedItem.getAlias())) {
+							builder.append("------------------------------- " + counter++ + " -------------------------------\n");
+							builder.append("Subject: " + certificate.getSubjectX500Principal()).append("\n");
+							builder.append("Issuer: " + certificate.getIssuerX500Principal()).append("\n");
+						}
+						Confirm.confirm(ConfirmType.INFORMATION, "Certificate chain for: " + selectedItem.getAlias(), builder.toString(), null);
+					}
+					catch (Exception e) {
+						MainController.getInstance().notify(e);
+					}
+				}
+			}
+		});
 
 		table.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<KeyStoreEntry>() {
 			@Override
 			public void changed(ObservableValue<? extends KeyStoreEntry> arg0, KeyStoreEntry arg1, KeyStoreEntry selectedItem) {
 				if (selectedItem != null && "Private Key".equals(selectedItem.getType())) {
 					addChain.setText("Add Key Chain");
+					addPKCS7.setText("Add PKCS7 chain");
 					keyPassword.setDisable(false);
 					signPKCS10Entity.setDisable(false);
 					signPKCS10Intermediate.setDisable(false);
+					showChain.setDisable(false);
 				}
 				else {
 					addChain.setText("Add Private Key");
+					addPKCS7.setText("Add PKCS7");
 					keyPassword.setDisable(true);
 					signPKCS10Entity.setDisable(true);
 					signPKCS10Intermediate.setDisable(true);
+					showChain.setDisable(true);
 				}
 			}
 		});
 		
-		buttons.getChildren().addAll(newSelfSigned, download, addCertificate, addKeystore, rename, delete, generatePKCS10, signPKCS10Entity, signPKCS10Intermediate, showPassword, addChain, keyPassword);
-		vbox.getChildren().addAll(buttons, table);
+		buttons.getChildren().addAll(newSelfSigned, download, rename, delete, generatePKCS10, signPKCS10Entity, signPKCS10Intermediate, showPassword);
+		HBox buttons2 = new HBox();
+		buttons2.getChildren().addAll(addCertificate, addKeystore, addChain, keyPassword, addPKCS7, showChain);
+		vbox.getChildren().addAll(buttons, buttons2, table);
 		AnchorPane.setLeftAnchor(vbox, 0d);
 		AnchorPane.setRightAnchor(vbox, 0d);
 		AnchorPane.setTopAnchor(vbox, 0d);
