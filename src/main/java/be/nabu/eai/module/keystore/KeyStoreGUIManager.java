@@ -47,8 +47,8 @@ import be.nabu.eai.developer.managers.base.BasePortableGUIManager;
 import be.nabu.eai.developer.managers.util.SimpleProperty;
 import be.nabu.eai.developer.managers.util.SimplePropertyUpdater;
 import be.nabu.eai.developer.util.Confirm;
-import be.nabu.eai.developer.util.EAIDeveloperUtils;
 import be.nabu.eai.developer.util.Confirm.ConfirmType;
+import be.nabu.eai.developer.util.EAIDeveloperUtils;
 import be.nabu.eai.repository.api.Entry;
 import be.nabu.eai.repository.api.ResourceEntry;
 import be.nabu.eai.repository.resources.RepositoryEntry;
@@ -60,6 +60,7 @@ import be.nabu.libs.validator.api.ValidationMessage.Severity;
 import be.nabu.utils.security.BCSecurityUtils;
 import be.nabu.utils.security.KeyPairType;
 import be.nabu.utils.security.KeyStoreHandler;
+import be.nabu.utils.security.SSLContextType;
 import be.nabu.utils.security.SecurityUtils;
 import be.nabu.utils.security.SignatureType;
 import be.nabu.utils.security.StoreType;
@@ -746,6 +747,66 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
+		
+		final Button addRemoteChain = new Button("Add Remote Chain");
+		addRemoteChain.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@SuppressWarnings({ "rawtypes", "unchecked" })
+			@Override
+			public void handle(ActionEvent arg0) {
+				Set properties = new LinkedHashSet();
+				properties.add(new SimpleProperty<String>("Host", String.class, true));
+				properties.add(new SimpleProperty<Integer>("Port", Integer.class, false));
+				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add remote chain", new EventHandler<ActionEvent>() {
+					@Override
+					public void handle(ActionEvent arg0) {
+						String host = updater.getValue("Host");
+						if (host != null) {
+							Integer port = updater.getValue("Port");
+							if (port == null) {
+								port = 443;
+							}
+							try {
+								X509Certificate[] chain = SecurityUtils.getChain(host, port, SSLContextType.TLS);
+								Set properties = new LinkedHashSet();
+								for (int i = 0; i < chain.length; i++) {
+									properties.add(new SimpleProperty<Boolean>("Add " + chain[i].getSubjectX500Principal(), Boolean.class, false));
+								}
+								SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+								EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Add remote chain", new EventHandler<ActionEvent>() {
+									@Override
+									public void handle(ActionEvent arg0) {
+										for (int i = 0; i < chain.length; i++) {
+											Boolean value = updater.getValue("Add " + chain[i].getSubjectX500Principal());
+											if (value != null && value) {
+												try {
+													keystore.getKeyStore().set("imported-certificate-" + chain[i].getSerialNumber(), chain[i]);
+												}
+												catch (Exception e) {
+													MainController.getInstance().notify(e);
+												}
+											}
+										}
+										MainController.getInstance().setChanged();
+										table.getItems().clear();
+										try {
+											table.getItems().addAll(toEntries(keystore.getKeyStore()));
+										}
+										catch (Exception e) {
+											MainController.getInstance().notify(e);
+										}
+									}
+								});
+							}
+							catch (Exception e) {
+								MainController.getInstance().notify(e);
+							}
+						}
+					}
+				});
+				
+			}
+		});
 
 		table.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<KeyStoreEntry>() {
 			@Override
@@ -771,7 +832,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		
 		buttons.getChildren().addAll(newSelfSigned, download, rename, delete, generatePKCS10, signPKCS10Entity, signPKCS10Intermediate, showPassword);
 		HBox buttons2 = new HBox();
-		buttons2.getChildren().addAll(addCertificate, addKeystore, addChain, keyPassword, addPKCS7, showChain);
+		buttons2.getChildren().addAll(addCertificate, addKeystore, addChain, keyPassword, addPKCS7, showChain, addRemoteChain);
 		vbox.getChildren().addAll(buttons, buttons2, table);
 		AnchorPane.setLeftAnchor(vbox, 0d);
 		AnchorPane.setRightAnchor(vbox, 0d);
