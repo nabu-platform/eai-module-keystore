@@ -36,6 +36,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import javax.security.auth.x500.X500Principal;
 
 import org.slf4j.Logger;
@@ -126,6 +128,40 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		
 		VBox vbox = new VBox();
 		HBox buttons = new HBox();
+		
+		Button newSecret = new Button("New Secret");
+		newSecret.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@SuppressWarnings({ "rawtypes", "unchecked" })
+			@Override
+			public void handle(ActionEvent arg0) {
+				Set properties = new LinkedHashSet(Arrays.asList(new Property [] {
+					new SimpleProperty<String>("Key Alias", String.class, true),
+					new SimpleProperty<Integer>("Keysize", Integer.class, false),
+				}));
+				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+				
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Create Secret Key", new EventHandler<ActionEvent>() {
+					@Override
+					public void handle(ActionEvent arg0) {
+						try {
+							String keyAlias = updater.getValue("Key Alias");
+							int keysize = updater.getValue("Keysize") == null ? 256 : updater.getValue("Keysize");
+							KeyGenerator generator = KeyGenerator.getInstance("AES");
+							generator.init(keysize);
+							SecretKey key = generator.generateKey();
+							keystore.getKeyStore().set(keyAlias == null ? "secretkey" : keyAlias, key, null);
+							table.getItems().clear();
+							table.getItems().addAll(toEntries(keystore.getKeyStore()));
+							MainController.getInstance().setChanged();
+						}
+						catch (Exception e) {
+							MainController.getInstance().notify(e);
+						}
+					}
+				});
+			}
+		});
+		
 		Button newSelfSigned = new Button("New Self Signed");
 		newSelfSigned.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -830,7 +866,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			}
 		});
 		
-		buttons.getChildren().addAll(newSelfSigned, download, rename, delete, generatePKCS10, signPKCS10Entity, signPKCS10Intermediate, showPassword);
+		buttons.getChildren().addAll(newSelfSigned, newSecret, download, rename, delete, generatePKCS10, signPKCS10Entity, signPKCS10Intermediate, showPassword);
 		HBox buttons2 = new HBox();
 		buttons2.getChildren().addAll(addCertificate, addKeystore, addChain, keyPassword, addPKCS7, showChain, addRemoteChain);
 		vbox.getChildren().addAll(buttons, buttons2, table);
@@ -882,7 +918,9 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 
 	@Override
 	protected List<Property<?>> getCreateProperties() {
-		return Arrays.asList(new SimpleProperty<String>("Password", String.class, true));
+		return Arrays.asList(
+			new SimpleProperty<String>("Password", String.class, true), 
+			new SimpleProperty<StoreType>("Type", StoreType.class, false));
 	}
 
 	@Override
@@ -893,7 +931,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 	@Override
 	protected KeyStoreArtifact newInstance(MainController controller, RepositoryEntry entry, Value<?>...values) throws IOException {
 		KeyStoreArtifact keystore = new KeyStoreArtifact(entry.getId(), entry.getContainer());
-		keystore.create(getValue("Password", String.class, values));
+		keystore.create(getValue("Password", String.class, values), getValue("Type", StoreType.class, values));
 		return keystore;
 	}
 

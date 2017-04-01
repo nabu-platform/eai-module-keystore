@@ -41,7 +41,7 @@ public class KeyStoreArtifact implements Artifact {
 		this.id = id;
 	}
 	
-	public void create(String password) throws IOException {
+	public void create(String password, StoreType type) throws IOException {
 		configurationResource = directory.getChild("keystore.xml");
 		if (configurationResource != null) {
 			throw new IllegalArgumentException("Can not create the keystore, it already exists");
@@ -50,6 +50,7 @@ public class KeyStoreArtifact implements Artifact {
 		configuration = new KeyStoreConfiguration();
 		configuration.setAlias(getId());
 		configuration.setPassword(password);
+		configuration.setType(type == null ? StoreType.JKS : type);
 		new ResourceConfigurationHandler(configurationResource).save(configuration);
 	}
 	
@@ -76,9 +77,10 @@ public class KeyStoreArtifact implements Artifact {
 	
 	public void save(ResourceContainer<?> directory) throws IOException, KeyStoreException {
 		ManagedKeyStoreImpl keystore = getKeyStore();
-		Resource target = directory.getChild("keystore.jks");
+		String filename = "keystore." + getConfiguration().getType().name().toLowerCase();
+		Resource target = directory.getChild(filename);
 		if (target == null) {
-			target = ((ManageableContainer<?>) directory).create("keystore.jks", StoreType.JKS.getContentType());
+			target = ((ManageableContainer<?>) directory).create(filename, getConfiguration().getType().getContentType());
 		}
 		keystore.save(target);
 		target = directory.getChild("keystore.xml");
@@ -91,19 +93,20 @@ public class KeyStoreArtifact implements Artifact {
 	public ManagedKeyStoreImpl getKeyStore() throws IOException, KeyStoreException {
 		if (keystore == null) {
 			try {
-				Resource target = directory.getChild("keystore.jks");
+				String filename = "keystore." + getConfiguration().getType().name().toLowerCase();
+				Resource target = directory.getChild(filename);
 				if (target == null) {
 					keystore = new ManagedKeyStoreImpl(
 						new ResourceConfigurationHandler((ReadableResource) getConfigurationResource()), 
 						target, 
 						getConfiguration(), 
-						KeyStoreHandler.create(getConfiguration().getPassword(), StoreType.JKS)
+						KeyStoreHandler.create(getConfiguration().getPassword(), getConfiguration().getType())
 					);
 				}
 				else {
 					ReadableContainer<ByteBuffer> input = new ResourceReadableContainer((ReadableResource) target);
 					try {
-						KeyStoreHandler handler = KeyStoreHandler.load(IOUtils.toInputStream(input), getConfiguration().getPassword(), StoreType.JKS);
+						KeyStoreHandler handler = KeyStoreHandler.load(IOUtils.toInputStream(input), getConfiguration().getPassword(), getConfiguration().getType());
 						keystore = new ManagedKeyStoreImpl(new ResourceConfigurationHandler((ReadableResource) getConfigurationResource()), target, getConfiguration(), handler);
 					}
 					finally {
