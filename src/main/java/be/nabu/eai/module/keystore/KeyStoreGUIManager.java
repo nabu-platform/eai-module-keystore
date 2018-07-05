@@ -843,6 +843,86 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				
 			}
 		});
+		
+		final Button downloadSSHPublic = new Button("As SSH Public");
+		downloadSSHPublic.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@SuppressWarnings({ "unchecked", "rawtypes" })
+			@Override
+			public void handle(ActionEvent arg0) {
+				final KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
+				boolean isPrivateKey = selectedItem != null && "Private Key".equals(selectedItem.getType());
+				if (isPrivateKey) {
+					SimpleProperty<File> fileProperty = new SimpleProperty<File>("File", File.class, true);
+					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { fileProperty }));
+					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, 
+						new ValueImpl<File>(fileProperty, new File("id_rsa_" + selectedItem.getAlias() + ".pub")));
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Download " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
+						@Override
+						public void handle(ActionEvent arg0) {
+							File file = updater.getValue("File");
+							if (file != null) {
+								StringWriter writer = new StringWriter();
+								try {
+									BCSecurityUtils.writeSSHKey(writer, keystore.getKeyStore().getChain(selectedItem.getAlias())[0].getPublicKey());
+									OutputStream output = new BufferedOutputStream(new FileOutputStream(file));
+									try {
+										output.write(writer.toString().getBytes("UTF-8"));
+									}
+									finally {
+										output.close();
+									}
+								}
+								catch (Exception e) {
+									MainController.getInstance().notify(e);
+								}
+							}
+						}
+					});
+				}
+			}
+		});
+		
+		final Button downloadSSHPrivate = new Button("As SSH Private");
+		downloadSSHPrivate.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@SuppressWarnings({ "unchecked", "rawtypes" })
+			@Override
+			public void handle(ActionEvent arg0) {
+				final KeyStoreEntry selectedItem = table.getSelectionModel().getSelectedItem();
+				boolean isPrivateKey = selectedItem != null && "Private Key".equals(selectedItem.getType());
+				if (isPrivateKey) {
+					SimpleProperty<File> fileProperty = new SimpleProperty<File>("File", File.class, true);
+					Set properties = new LinkedHashSet(Arrays.asList(new Property [] { fileProperty , new SimpleProperty<String>("Password", String.class, false) }));
+					final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties, 
+						new ValueImpl<File>(fileProperty, new File("id_rsa_" + selectedItem.getAlias())));
+					EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Download " + selectedItem.getAlias(), new EventHandler<ActionEvent>() {
+						@Override
+						public void handle(ActionEvent arg0) {
+							File file = updater.getValue("File");
+							String password = updater.getValue("Password");
+							if (password != null && password.trim().isEmpty()) {
+								password = null;
+							}
+							if (file != null) {
+								StringWriter writer = new StringWriter();
+								try {
+									BCSecurityUtils.writeSSHKey(writer, keystore.getKeyStore().getPrivateKey(selectedItem.getAlias()), password);
+									OutputStream output = new BufferedOutputStream(new FileOutputStream(file));
+									try {
+										output.write(writer.toString().getBytes("UTF-8"));
+									}
+									finally {
+										output.close();
+									}
+								}
+								catch (Exception e) {
+									MainController.getInstance().notify(e);
+								}
+							}
+						}
+					});
+				}
+			}
+		});
 
 		table.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<KeyStoreEntry>() {
 			@Override
@@ -854,6 +934,8 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					signPKCS10Entity.setDisable(false);
 					signPKCS10Intermediate.setDisable(false);
 					showChain.setDisable(false);
+					downloadSSHPublic.setDisable(false);
+					downloadSSHPrivate.setDisable(false);
 				}
 				else {
 					addChain.setText("Add Private Key");
@@ -862,13 +944,15 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 					signPKCS10Entity.setDisable(true);
 					signPKCS10Intermediate.setDisable(true);
 					showChain.setDisable(true);
+					downloadSSHPublic.setDisable(true);
+					downloadSSHPrivate.setDisable(true);
 				}
 			}
 		});
 		
 		buttons.getChildren().addAll(newSelfSigned, newSecret, download, rename, delete, generatePKCS10, signPKCS10Entity, signPKCS10Intermediate, showPassword);
 		HBox buttons2 = new HBox();
-		buttons2.getChildren().addAll(addCertificate, addKeystore, addChain, keyPassword, addPKCS7, showChain, addRemoteChain);
+		buttons2.getChildren().addAll(addCertificate, addKeystore, addChain, keyPassword, addPKCS7, showChain, addRemoteChain, downloadSSHPublic, downloadSSHPrivate);
 		vbox.getChildren().addAll(buttons, buttons2, table);
 		AnchorPane.setLeftAnchor(vbox, 0d);
 		AnchorPane.setRightAnchor(vbox, 0d);
