@@ -37,7 +37,9 @@ public class KeyStoreMerger implements ArtifactMerger<KeyStoreArtifact> {
 					String alias = aliases.nextElement();
 					// if we don't have the alias in the source, we added it specifically in the target (e.g. acme), port it to the source
 					// note that this makes it very hard to actually delete something
-					if (!existing.contains(alias)) {
+					// now we overwrite anything in the source with the target, we are using reverse proxies in all environments now (including dev) which means acme is active everywhere with different keys
+					// worst case we can add some configuration to explicitly change this behavior
+//					if (!existing.contains(alias)) {
 						if (target.getKeyStore().getKeyStore().entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
 							source.getKeyStore().set(alias, target.getKeyStore().getPrivateKey(alias), target.getKeyStore().getChain(alias), target.getKeyStore().getPassword(alias));
 						}
@@ -48,7 +50,7 @@ public class KeyStoreMerger implements ArtifactMerger<KeyStoreArtifact> {
 							source.getKeyStore().set(alias, target.getKeyStore().getCertificate(alias));
 						}
 						merged.add(alias);
-					}
+//					}
 				}
 			}
 			catch (Exception e) {
