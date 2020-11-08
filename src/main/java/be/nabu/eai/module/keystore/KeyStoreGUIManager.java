@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.security.KeyPair;
 import java.security.KeyStore;
@@ -646,6 +647,62 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 			}
 		});
 		
+		final Button addRSAKey = new Button("Add RSA Private Key");
+		addRSAKey.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@SuppressWarnings({ "rawtypes", "unchecked" })
+			@Override
+			public void handle(ActionEvent arg0) {
+				Set properties = new LinkedHashSet(Arrays.asList(new Property [] {
+					new SimpleProperty<byte[]>("Private Key", byte[].class, true),
+					new SimpleProperty<String>("Key Alias", String.class, false),
+					new SimpleProperty<String>("Certificate Alias", String.class, false),
+					new SimpleProperty<Duration>("Duration", Duration.class, false),
+					new SimpleProperty<String>("Common Name", String.class, false),
+					new SimpleProperty<String>("Organisation", String.class, false),
+					new SimpleProperty<String>("Organisational Unit", String.class, false),
+					new SimpleProperty<String>("Locality", String.class, false),
+					new SimpleProperty<String>("State", String.class, false),
+					new SimpleProperty<String>("Country", String.class, false)
+				}));
+				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+				
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Need to sign RSA key", new EventHandler<ActionEvent>() {
+					@Override
+					public void handle(ActionEvent arg0) {
+						try {
+							byte [] keyBytes = updater.getValue("Private Key");
+							KeyPair keyPair = BCSecurityUtils.parseKeyPair(new StringReader(new String(keyBytes)));
+							X500Principal principal = SecurityUtils.createX500Principal(
+								updater.getValue("Common Name"),
+								updater.getValue("Organisation"),
+								updater.getValue("Organisational Unit"),
+								updater.getValue("Locality"),
+								updater.getValue("State"),
+								updater.getValue("Country")
+							);
+							Duration duration = updater.getValue("Duration");
+							if (duration == null) {
+								duration = Duration.YEAR;
+							}
+							String keyAlias = updater.getValue("Key Alias");
+							String certificateAlias = updater.getValue("Certificate Alias");
+							X509Certificate certificate = BCSecurityUtils.generateSelfSignedCertificate(keyPair, new Date(new Date().getTime() + duration.getMs()), principal, principal, SignatureType.SHA256WITHRSA);
+							keystore.getKeyStore().set(certificateAlias == null ? "ca" : certificateAlias, certificate);
+							keystore.getKeyStore().set(keyAlias == null ? "privkey" : keyAlias, keyPair.getPrivate(), new X509Certificate[] { certificate }, null);
+							table.getItems().clear();
+							table.getItems().addAll(toEntries(keystore.getKeyStore()));
+							MainController.getInstance().setChanged();
+						}
+						catch (Exception e) {
+							MainController.getInstance().notify(new ValidationMessage(Severity.ERROR, "Failed: " + e.getMessage()));
+							logger.error("Could not generate self signed", e);
+						}
+					}
+				});
+			}
+		});
+		
+		
 		final Button addChain = new Button("Add Private Key");
 		addChain.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
 			@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -952,7 +1009,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		
 		buttons.getChildren().addAll(newSelfSigned, newSecret, download, rename, delete, generatePKCS10, signPKCS10Entity, signPKCS10Intermediate, showPassword);
 		HBox buttons2 = new HBox();
-		buttons2.getChildren().addAll(addCertificate, addKeystore, addChain, keyPassword, addPKCS7, showChain, addRemoteChain, downloadSSHPublic, downloadSSHPrivate);
+		buttons2.getChildren().addAll(addCertificate, addKeystore, addChain, keyPassword, addPKCS7, showChain, addRemoteChain, downloadSSHPublic, downloadSSHPrivate, addRSAKey);
 		vbox.getChildren().addAll(buttons, buttons2, table);
 		AnchorPane.setLeftAnchor(vbox, 0d);
 		AnchorPane.setRightAnchor(vbox, 0d);
