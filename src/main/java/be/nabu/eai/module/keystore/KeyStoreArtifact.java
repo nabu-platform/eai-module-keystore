@@ -33,7 +33,7 @@ import be.nabu.utils.security.resources.ManagedKeyStoreImpl;
 import be.nabu.utils.security.resources.ResourceConfigurationHandler;
 
 // sub folders "certificates" and "keys"
-public class KeyStoreArtifact implements Artifact, ResourceContainer<Resource> {
+public class KeyStoreArtifact implements Artifact {
 	
 	static {
 		BCSecurityUtils.loadLibrary();
@@ -146,22 +146,18 @@ public class KeyStoreArtifact implements Artifact, ResourceContainer<Resource> {
 		return directory;
 	}
 
-	@Override
 	public String getContentType() {
 		return Resource.CONTENT_TYPE_DIRECTORY;
 	}
 
-	@Override
 	public String getName() {
 		return "artifact";
 	}
 
-	@Override
 	public ResourceContainer<?> getParent() {
 		return null;
 	}
 
-	@Override
 	public Iterator<Resource> iterator() {
 		return new ArrayList<Resource>().iterator();
 	}
@@ -179,7 +175,6 @@ public class KeyStoreArtifact implements Artifact, ResourceContainer<Resource> {
 		return item;
 	}
 	
-	@Override
 	public Resource getChild(String name) {
 		try {
 			String[] parts = name.split(":");
