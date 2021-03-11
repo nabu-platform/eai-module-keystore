@@ -726,6 +726,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 						}
 						for (int i = 0; i < amountOfCertificates; i++) {
 							SimpleProperty<byte[]> certificateProperty = new SimpleProperty<byte[]>("Certificate[" + i + "]", byte[].class, true);
+							certificateProperty.setDescription("The first certificate should be the certificate for your site, then the intermediaries and finally the root");
 							properties.add(certificateProperty);
 						}
 						final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
