@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.URI;
 import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -28,6 +29,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -72,9 +74,10 @@ import be.nabu.utils.security.api.ManagedKeyStore;
 public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact, BaseArtifactGUIInstance<KeyStoreArtifact>> {
 
 	private Logger logger = LoggerFactory.getLogger(getClass());
+	private KeyStoreArtifact keystore;
 	
 	public KeyStoreGUIManager() {
-		super("Key Store", KeyStoreArtifact.class, new KeyStoreManager());
+		super("Java Keystore", KeyStoreArtifact.class, new KeyStoreManager());
 	}
 
 	@Override
@@ -117,8 +120,22 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		}
 	}
 	
+	private <T extends Node> T ifType(T node, StoreType...type) {
+		boolean visible = Arrays.asList(type).indexOf(keystore.getConfig().getType()) >= 0;
+		node.setManaged(visible);
+		node.setVisible(visible);
+		return node;
+	}
+	private <T extends Node> T ifNotType(T node, StoreType type) {
+		boolean visible = Arrays.asList(type).indexOf(keystore.getConfig().getType()) < 0;
+		node.setManaged(visible);
+		node.setVisible(visible);
+		return node;
+	}
+	
 	@Override
 	public void display(MainController controller, AnchorPane pane, final KeyStoreArtifact keystore) {
+		this.keystore = keystore;
 		final TableView<KeyStoreEntry> table = createTable();
 		try {
 			table.getItems().addAll(toEntries(keystore.getKeyStore()));
@@ -162,6 +179,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
+		ifType(newSecret, StoreType.JCEKS);
 		
 		Button newSelfSigned = new Button("New Self Signed");
 		newSelfSigned.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -217,6 +235,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
+//		ifNotType(newSelfSigned, StoreType.JWK);
 	
 		Button addCertificate = new Button("Add Certificate");
 		addCertificate.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -253,6 +272,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
+//		ifNotType(addCertificate, StoreType.JWK);
 		
 		final Button keyPassword = new Button("Key Password");
 		keyPassword.setDisable(true);
@@ -297,6 +317,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
+//		ifNotType(keyPassword, StoreType.JWK);
 		
 		Button addKeystore = new Button("Add Keystore");
 		addKeystore.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -341,6 +362,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
+//		ifNotType(addKeystore, StoreType.JWK);
 		
 		Button delete = new Button("Delete");
 		delete.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -393,6 +415,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
+//		ifNotType(rename, StoreType.JWK);
 		
 		Button download = new Button("Download");
 		download.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -525,6 +548,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
+//		ifNotType(generatePKCS10, StoreType.JWK);
 		
 		Button signPKCS10Entity = new Button("Sign PKCS10 (Entity)");
 		signPKCS10Entity.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -576,6 +600,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
+//		ifNotType(signPKCS10Entity, StoreType.JWK);
 		
 		Button signPKCS10Intermediate = new Button("Sign PKCS10 (Intermediate CA)");
 		signPKCS10Intermediate.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -629,6 +654,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
+//		ifNotType(signPKCS10Intermediate, StoreType.JWK);
 		
 		final Button showPassword = new Button("Show Password");
 		showPassword.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -701,7 +727,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
-		
+//		ifNotType(addRSAKey, StoreType.JWK);
 		
 		final Button addChain = new Button("Add Private Key");
 		addChain.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -764,6 +790,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
+//		ifNotType(addChain, StoreType.JWK);
 		
 		final Button addPKCS7 = new Button("Add PKCS7");
 		addPKCS7.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -817,6 +844,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
+//		ifNotType(addPKCS7, StoreType.JWK);
 		
 		final Button showChain = new Button("Show Chain");
 		showChain.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -901,6 +929,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				
 			}
 		});
+//		ifNotType(addRemoteChain, StoreType.JWK);
 		
 		final Button downloadSSHPublic = new Button("As SSH Public");
 		downloadSSHPublic.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -981,6 +1010,27 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				}
 			}
 		});
+		
+		final Button setJWKUrl = new Button("Set JWK URL");
+		setJWKUrl.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
+			@SuppressWarnings({ "rawtypes", "unchecked" })
+			@Override
+			public void handle(ActionEvent arg0) {
+				Set properties = new LinkedHashSet();
+				properties.add(new SimpleProperty<URI>("URL", URI.class, true));
+				final SimplePropertyUpdater updater = new SimplePropertyUpdater(true, properties);
+				EAIDeveloperUtils.buildPopup(MainController.getInstance(), updater, "Set JWK URL", new EventHandler<ActionEvent>() {
+					@Override
+					public void handle(ActionEvent arg0) {
+						URI uri = updater.getValue("URL");
+						if (uri != null) {
+							
+						}
+					}
+				});
+			}
+		});
+//		ifType(setJWKUrl, StoreType.JWK);
 
 		table.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<KeyStoreEntry>() {
 			@Override
@@ -1061,7 +1111,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 	@Override
 	protected List<Property<?>> getCreateProperties() {
 		return Arrays.asList(
-			new SimpleProperty<String>("Password", String.class, true), 
+//			new SimpleProperty<String>("Password", String.class, true), 
 			new SimpleProperty<StoreType>("Type", StoreType.class, false));
 	}
 
@@ -1073,7 +1123,8 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 	@Override
 	protected KeyStoreArtifact newInstance(MainController controller, RepositoryEntry entry, Value<?>...values) throws IOException {
 		KeyStoreArtifact keystore = new KeyStoreArtifact(entry.getId(), entry.getContainer());
-		keystore.create(getValue("Password", String.class, values), getValue("Type", StoreType.class, values));
+//		keystore.create(getValue("Password", String.class, values), getValue("Type", StoreType.class, values));
+		keystore.create(null, getValue("Type", StoreType.class, values));
 		return keystore;
 	}
 

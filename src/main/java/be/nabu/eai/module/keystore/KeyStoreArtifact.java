@@ -11,6 +11,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.UUID;
 
 import javax.xml.bind.JAXBException;
 
@@ -58,7 +59,7 @@ public class KeyStoreArtifact implements Artifact {
 		configurationResource = ((ManageableContainer<?>) directory).create("keystore.xml", "application/xml");
 		configuration = new KeyStoreConfiguration();
 		configuration.setAlias(getId());
-		configuration.setPassword(password);
+		configuration.setPassword(password == null ? UUID.randomUUID().toString().replace("-", "") : password);
 		configuration.setType(type == null ? StoreType.JKS : type);
 		new ResourceConfigurationHandler(configurationResource).save(configuration);
 	}
@@ -72,6 +73,16 @@ public class KeyStoreArtifact implements Artifact {
 		}
 		return configurationResource;
 	}
+	
+	public KeyStoreConfiguration getConfig() {
+		try {
+			return getConfiguration();
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
 	public KeyStoreConfiguration getConfiguration() throws IOException {
 		if (configuration == null) {
 			try {

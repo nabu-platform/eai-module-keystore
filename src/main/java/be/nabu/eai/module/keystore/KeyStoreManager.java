@@ -50,4 +50,5 @@ public class KeyStoreManager implements ArtifactManager<KeyStoreArtifact> {
 	public List<Validation<?>> updateReference(KeyStoreArtifact artifact, String from, String to) throws IOException {
 		return null;
 	}
+	
 }
