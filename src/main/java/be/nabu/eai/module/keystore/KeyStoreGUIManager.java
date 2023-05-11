@@ -69,6 +69,7 @@ import be.nabu.utils.security.SSLContextType;
 import be.nabu.utils.security.SecurityUtils;
 import be.nabu.utils.security.SignatureType;
 import be.nabu.utils.security.StoreType;
+import be.nabu.utils.security.api.KeyStoreEntryType;
 import be.nabu.utils.security.api.ManagedKeyStore;
 
 public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact, BaseArtifactGUIInstance<KeyStoreArtifact>> {
@@ -442,7 +443,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 							File file = updater.getValue("File");
 							if (file != null) {
 								try {
-									if (keystore.getKeyStore().getKeyStore().entryInstanceOf(selectedItem.getAlias(), KeyStore.TrustedCertificateEntry.class)) {
+									if (keystore.getKeyStore().getEntryType(selectedItem.getAlias()) == KeyStoreEntryType.CERTIFICATE) {	// getKeyStore().entryInstanceOf(selectedItem.getAlias(), KeyStore.TrustedCertificateEntry.class)
 										FileWriter writer = new FileWriter(file);
 										try {
 											SecurityUtils.encodeCertificate(keystore.getKeyStore().getCertificate(selectedItem.getAlias()), writer);
@@ -451,7 +452,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 											writer.close();
 										}
 									}
-									else if (keystore.getKeyStore().getKeyStore().entryInstanceOf(selectedItem.getAlias(), KeyStore.PrivateKeyEntry.class)) {
+									else if (keystore.getKeyStore().getEntryType(selectedItem.getAlias()) == KeyStoreEntryType.PRIVATE_KEY) {		// keystore.getKeyStore().getKeyStore().entryInstanceOf(selectedItem.getAlias(), KeyStore.PrivateKeyEntry.class)
 										Boolean includeKey = updater.getValue("Include Private Key");
 										String password = updater.getValue("Password");
 										KeyStoreHandler temporary = KeyStoreHandler.create(password, StoreType.PKCS12);
@@ -1073,25 +1074,23 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 	
 	private List<KeyStoreEntry> toEntries(ManagedKeyStore keystore) throws KeyStoreException, IOException {
 		List<KeyStoreEntry> entries = new ArrayList<KeyStoreEntry>();
-		Enumeration<String> aliases = keystore.getKeyStore().aliases();
-		while (aliases.hasMoreElements()) {
-			String alias = aliases.nextElement();
+		for (String alias : keystore.getAliases()) {
 			KeyStoreEntry entry = new KeyStoreEntry();
 			entry.setAlias(alias);
 
 			X509Certificate certificate = null;
 			// a certificate
-			if (keystore.getKeyStore().entryInstanceOf(alias, KeyStore.TrustedCertificateEntry.class)) {
+			if (keystore.getEntryType(alias) == KeyStoreEntryType.CERTIFICATE) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.TrustedCertificateEntry.class)
 				certificate = keystore.getCertificate(alias);
 				entry.setType("Certificate");
 			}
-			else if (keystore.getKeyStore().entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
+			else if (keystore.getEntryType(alias) == KeyStoreEntryType.PRIVATE_KEY) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)
 				X509Certificate[] chain = keystore.getChain(alias);
 				certificate = chain[0];
 				entry.setChainLength(chain.length);
 				entry.setType("Private Key");
 			}
-			else if (keystore.getKeyStore().entryInstanceOf(alias, KeyStore.SecretKeyEntry.class)) {
+			else if (keystore.getEntryType(alias) == KeyStoreEntryType.SECRET_KEY) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.SecretKeyEntry.class)
 				entry.setType("Secret Key");
 			}
 			else {

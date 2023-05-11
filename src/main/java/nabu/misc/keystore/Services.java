@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 
@@ -22,6 +23,7 @@ import be.nabu.eai.module.keystore.KeyStoreArtifact;
 import be.nabu.libs.services.api.ExecutionContext;
 import be.nabu.utils.security.MacAlgorithm;
 import be.nabu.utils.security.SecurityUtils;
+import be.nabu.utils.security.api.KeyStoreEntryType;
 
 @WebService
 public class Services {
@@ -56,6 +58,23 @@ public class Services {
 		}
 		SecretKey secretKey = keystore.getKeyStore().getSecretKey(keyAlias);
 		return SecurityUtils.encodeMac(secretKey, content, algorithm.name());
+	}
+	
+	@WebResult(name = "key")
+	public Key getKey(@NotNull @WebParam(name = "keystoreId") String keystoreId, @NotNull @WebParam(name = "keyAlias") String alias) throws KeyStoreException, IOException {
+		KeyStoreArtifact keystore = executionContext.getServiceContext().getResolver(KeyStoreArtifact.class).resolve(keystoreId);
+		if (keystore == null) {
+			throw new IllegalArgumentException("No keystore found");
+		}
+		KeyStoreEntryType entryType = keystore.getKeyStore().getEntryType(alias);
+		switch (entryType) {
+			case PRIVATE_KEY:
+				return keystore.getKeyStore().getPrivateKey(alias);
+			case SECRET_KEY:
+				return keystore.getKeyStore().getSecretKey(alias);
+			default:
+				throw new RuntimeException("Invalid alias: " + alias);
+		}
 	}
 
 	private InputStream processSymmetric(InputStream input, String keystoreId, String keyAlias, Integer mode) throws KeyStoreException, IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {

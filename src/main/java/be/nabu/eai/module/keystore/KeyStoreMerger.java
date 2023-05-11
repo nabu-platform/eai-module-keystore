@@ -2,7 +2,6 @@ package be.nabu.eai.module.keystore;
 
 import java.security.KeyStore;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
 
 import javafx.collections.FXCollections;
@@ -15,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import be.nabu.eai.developer.api.ArtifactMerger;
 import be.nabu.eai.repository.api.Repository;
+import be.nabu.utils.security.api.KeyStoreEntryType;
 
 public class KeyStoreMerger implements ArtifactMerger<KeyStoreArtifact> {
 
@@ -26,27 +26,22 @@ public class KeyStoreMerger implements ArtifactMerger<KeyStoreArtifact> {
 		if (source != null && target != null) {
 			try {
 				List<String> existing = new ArrayList<String>();
-				Enumeration<String> aliases = source.getKeyStore().getKeyStore().aliases();
-				while (aliases.hasMoreElements()) {
-					String alias = aliases.nextElement();
+				for (String alias : source.getKeyStore().getAliases()) {
 					existing.add(alias);
 				}
-				
-				aliases = target.getKeyStore().getKeyStore().aliases();
-				while (aliases.hasMoreElements()) {
-					String alias = aliases.nextElement();
+				for (String alias : target.getKeyStore().getAliases()) {
 					// if we don't have the alias in the source, we added it specifically in the target (e.g. acme), port it to the source
 					// note that this makes it very hard to actually delete something
 					// now we overwrite anything in the source with the target, we are using reverse proxies in all environments now (including dev) which means acme is active everywhere with different keys
 					// worst case we can add some configuration to explicitly change this behavior
 //					if (!existing.contains(alias)) {
-						if (target.getKeyStore().getKeyStore().entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)) {
+						if (target.getKeyStore().getEntryType(alias) == KeyStoreEntryType.PRIVATE_KEY) {		// target.getKeyStore().getKeyStore().entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)
 							source.getKeyStore().set(alias, target.getKeyStore().getPrivateKey(alias), target.getKeyStore().getChain(alias), target.getKeyStore().getPassword(alias));
 						}
-						else if (target.getKeyStore().getKeyStore().entryInstanceOf(alias, KeyStore.SecretKeyEntry.class)) {
+						else if (target.getKeyStore().getEntryType(alias) == KeyStoreEntryType.SECRET_KEY) {	// target.getKeyStore().getKeyStore().entryInstanceOf(alias, KeyStore.SecretKeyEntry.class)
 							source.getKeyStore().set(alias, target.getKeyStore().getSecretKey(alias), target.getKeyStore().getPassword(alias));
 						}
-						else if (target.getKeyStore().getKeyStore().entryInstanceOf(alias, KeyStore.TrustedCertificateEntry.class)) {
+						else if (target.getKeyStore().getEntryType(alias) == KeyStoreEntryType.CERTIFICATE) {	// target.getKeyStore().getKeyStore().entryInstanceOf(alias, KeyStore.TrustedCertificateEntry.class)
 							source.getKeyStore().set(alias, target.getKeyStore().getCertificate(alias));
 						}
 						merged.add(alias);
