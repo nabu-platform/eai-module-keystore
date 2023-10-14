@@ -9,13 +9,11 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.UUID;
 
-import javax.xml.bind.JAXBException;
-
-import be.nabu.libs.artifacts.api.Artifact;
+import be.nabu.eai.module.keystore.persistance.KeyStorePersistanceArtifact;
+import be.nabu.eai.repository.api.Repository;
+import be.nabu.eai.repository.artifacts.jaxb.JAXBArtifact;
 import be.nabu.libs.resources.ResourceReadableContainer;
 import be.nabu.libs.resources.api.ManageableContainer;
 import be.nabu.libs.resources.api.ReadableResource;
@@ -29,150 +27,110 @@ import be.nabu.utils.io.api.WritableContainer;
 import be.nabu.utils.security.BCSecurityUtils;
 import be.nabu.utils.security.KeyStoreHandler;
 import be.nabu.utils.security.StoreType;
-import be.nabu.utils.security.resources.KeyStoreManagerConfiguration.KeyStoreConfiguration;
+import be.nabu.utils.security.api.ManagedKeyStore;
+import be.nabu.utils.security.basic.BasicManagedKeyStore;
 import be.nabu.utils.security.resources.ManagedKeyStoreImpl;
 import be.nabu.utils.security.resources.ResourceConfigurationHandler;
 
 // sub folders "certificates" and "keys"
-public class KeyStoreArtifact implements Artifact {
-	
+public class KeyStoreArtifact extends JAXBArtifact<KeyStoreArtifactConfiguration> {
+
 	static {
 		BCSecurityUtils.loadLibrary();
 	}
 	
-	private ManagedKeyStoreImpl keystore;
-	private ResourceContainer<?> directory;
-	private String id;
-	private KeyStoreConfiguration configuration;
-	private Resource configurationResource;
+	private ManagedKeyStore keystore;
 
-	public KeyStoreArtifact(String id, ResourceContainer<?> directory) {
-		this.directory = directory;
-		this.id = id;
+	public KeyStoreArtifact(String id, ResourceContainer<?> directory, Repository repository) {
+		super(id, directory, repository, "keystore.xml", KeyStoreArtifactConfiguration.class);
+	}
+	
+	public void create(String password, KeyStorePersistanceArtifact persister) throws IOException {
+		KeyStoreArtifactConfiguration configuration = getConfig();
+		configuration.setAlias(getId());
+		configuration.setPassword(password == null ? UUID.randomUUID().toString().replace("-", "") : password);
+		configuration.setPersister(persister);
 	}
 	
 	public void create(String password, StoreType type) throws IOException {
-		configurationResource = directory.getChild("keystore.xml");
-		if (configurationResource != null) {
-			throw new IllegalArgumentException("Can not create the keystore, it already exists");
-		}
-		configurationResource = ((ManageableContainer<?>) directory).create("keystore.xml", "application/xml");
-		configuration = new KeyStoreConfiguration();
+		KeyStoreArtifactConfiguration configuration = getConfig();
 		configuration.setAlias(getId());
 		configuration.setPassword(password == null ? UUID.randomUUID().toString().replace("-", "") : password);
 		configuration.setType(type == null ? StoreType.JKS : type);
-		new ResourceConfigurationHandler(configurationResource).save(configuration);
 	}
 	
-	public Resource getConfigurationResource() throws IOException {
-		if (configurationResource == null) {
-			configurationResource = directory.getChild("keystore.xml");
-			if (configurationResource == null) {
-				throw new IOException("The keystore was not properly initialized, there is no existing configuration");
+	private Resource getConfigurationResource() throws IOException {
+		return getDirectory().getChild("keystore.xml");
+	}
+	
+	@Override
+	public void save(ResourceContainer<?> directory) {
+		try {
+			super.save(directory);
+			ManagedKeyStore keystore = getKeyStore();
+			// only these are actually persisted
+			if (keystore instanceof ManagedKeyStoreImpl) {
+				String filename = "keystore." + getConfiguration().getType().name().toLowerCase();
+				Resource target = directory.getChild(filename);
+				if (target == null) {
+					target = ((ManageableContainer<?>) directory).create(filename, getConfiguration().getType().getContentType());
+				}
+				// the resource version actually stores the keystore on disk so needs to persist it to the directory as well
+				// the basic one uses an external persistance manager
+				if (keystore instanceof ManagedKeyStoreImpl) {
+					((ManagedKeyStoreImpl) keystore).save(target);
+				}
 			}
 		}
-		return configurationResource;
-	}
-	
-	public KeyStoreConfiguration getConfig() {
-		try {
-			return getConfiguration();
-		}
-		catch (IOException e) {
+		catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
 	
-	public KeyStoreConfiguration getConfiguration() throws IOException {
-		if (configuration == null) {
-			try {
-				configuration = ResourceConfigurationHandler.unmarshal((ReadableResource) getConfigurationResource());
-			}
-			catch (JAXBException e) {
-				throw new IOException(e);
-			}
-		}
-		return configuration;
-	}
-	
-	public void save(ResourceContainer<?> directory) throws IOException, KeyStoreException {
-		ManagedKeyStoreImpl keystore = getKeyStore();
-		String filename = "keystore." + getConfiguration().getType().name().toLowerCase();
-		Resource target = directory.getChild(filename);
-		if (target == null) {
-			target = ((ManageableContainer<?>) directory).create(filename, getConfiguration().getType().getContentType());
-		}
-		keystore.save(target);
-		target = directory.getChild("keystore.xml");
-		if (target == null) {
-			target = ((ManageableContainer<?>) directory).create("keystore.xml", "application/xml");
-		}
-		new ResourceConfigurationHandler(target).save(getConfiguration());
-	}
-	
-	public ManagedKeyStoreImpl getKeyStore() throws IOException, KeyStoreException {
+	public ManagedKeyStore getKeyStore() throws IOException, KeyStoreException {
 		if (keystore == null) {
-			try {
-				String filename = "keystore." + getConfiguration().getType().name().toLowerCase();
-				Resource target = directory.getChild(filename);
-				if (target == null) {
-					keystore = new ManagedKeyStoreImpl(
-						new ResourceConfigurationHandler((ReadableResource) getConfigurationResource()), 
-						target, 
-						getConfiguration(), 
-						KeyStoreHandler.create(getConfiguration().getPassword(), getConfiguration().getType())
-					);
-				}
-				else {
-					ReadableContainer<ByteBuffer> input = new ResourceReadableContainer((ReadableResource) target);
-					try {
-						KeyStoreHandler handler = KeyStoreHandler.load(IOUtils.toInputStream(input), getConfiguration().getPassword(), getConfiguration().getType());
-						keystore = new ManagedKeyStoreImpl(new ResourceConfigurationHandler((ReadableResource) getConfigurationResource()), target, getConfiguration(), handler);
+			if (getConfig().getPersister() != null) {
+				keystore = new BasicManagedKeyStore(getConfig().getPersister().getManager(), getId(), getConfig().getPassword());
+			}
+			else {
+				try {
+					String filename = "keystore." + getConfiguration().getType().name().toLowerCase();
+					Resource target = getDirectory().getChild(filename);
+					if (target == null) {
+						target = ((ManageableContainer<?>) getDirectory()).create(filename, getConfiguration().getType().getContentType());
+						keystore = new ManagedKeyStoreImpl(
+							new ResourceConfigurationHandler((ReadableResource) getConfigurationResource(), KeyStoreArtifactConfiguration.class), 
+							target, 
+							getConfiguration(), 
+							KeyStoreHandler.create(getConfiguration().getPassword(), getConfiguration().getType())
+						);
 					}
-					finally {
-						input.close();
+					else {
+						ReadableContainer<ByteBuffer> input = new ResourceReadableContainer((ReadableResource) target);
+						try {
+							KeyStoreHandler handler = KeyStoreHandler.load(IOUtils.toInputStream(input), getConfiguration().getPassword(), getConfiguration().getType());
+							keystore = new ManagedKeyStoreImpl(new ResourceConfigurationHandler((ReadableResource) getConfigurationResource(), KeyStoreArtifactConfiguration.class), target, getConfiguration(), handler);
+						}
+						finally {
+							input.close();
+						}
 					}
+					((ManagedKeyStoreImpl) keystore).setSaveOnChange(false);
 				}
-				keystore.setSaveOnChange(false);
-			}
-			catch (NoSuchAlgorithmException e) {
-				throw new KeyStoreException(e);
-			}
-			catch (CertificateException e) {
-				throw new KeyStoreException(e);
-			}
-			catch (NoSuchProviderException e) {
-				throw new KeyStoreException(e);
+				catch (NoSuchAlgorithmException e) {
+					throw new KeyStoreException(e);
+				}
+				catch (CertificateException e) {
+					throw new KeyStoreException(e);
+				}
+				catch (NoSuchProviderException e) {
+					throw new KeyStoreException(e);
+				}
 			}
 		}
 		return keystore;
 	}
 	
-	@Override
-	public String getId() {
-		return id;
-	}
-
-	public ResourceContainer<?> getDirectory() {
-		return directory;
-	}
-
-	public String getContentType() {
-		return Resource.CONTENT_TYPE_DIRECTORY;
-	}
-
-	public String getName() {
-		return "artifact";
-	}
-
-	public ResourceContainer<?> getParent() {
-		return null;
-	}
-
-	public Iterator<Resource> iterator() {
-		return new ArrayList<Resource>().iterator();
-	}
-
 	private Resource buildItem(String name, byte [] content) {
 		MemoryItem item = new MemoryItem(name);
 		WritableContainer<ByteBuffer> writable = item.getWritable();

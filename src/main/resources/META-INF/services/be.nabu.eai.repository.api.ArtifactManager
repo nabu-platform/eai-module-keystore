@@ -1,1 +1,2 @@
 be.nabu.eai.module.keystore.KeyStoreManager
+be.nabu.eai.module.keystore.persistance.KeyStorePersistanceArtifactManager

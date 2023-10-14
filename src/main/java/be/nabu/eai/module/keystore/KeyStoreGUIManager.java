@@ -49,14 +49,18 @@ import org.slf4j.LoggerFactory;
 import be.nabu.eai.developer.MainController;
 import be.nabu.eai.developer.managers.base.BaseArtifactGUIInstance;
 import be.nabu.eai.developer.managers.base.BasePortableGUIManager;
+import be.nabu.eai.developer.managers.util.EnumeratedSimpleProperty;
 import be.nabu.eai.developer.managers.util.SimpleProperty;
 import be.nabu.eai.developer.managers.util.SimplePropertyUpdater;
 import be.nabu.eai.developer.util.Confirm;
 import be.nabu.eai.developer.util.Confirm.ConfirmType;
 import be.nabu.eai.developer.util.EAIDeveloperUtils;
+import be.nabu.eai.module.keystore.persistance.KeyStorePersistanceArtifact;
+import be.nabu.eai.repository.EAIResourceRepository;
 import be.nabu.eai.repository.api.Entry;
 import be.nabu.eai.repository.api.ResourceEntry;
 import be.nabu.eai.repository.resources.RepositoryEntry;
+import be.nabu.libs.artifacts.api.Artifact;
 import be.nabu.libs.property.api.Property;
 import be.nabu.libs.property.api.Value;
 import be.nabu.libs.types.base.ValueImpl;
@@ -127,8 +131,8 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 		node.setVisible(visible);
 		return node;
 	}
-	private <T extends Node> T ifNotType(T node, StoreType type) {
-		boolean visible = Arrays.asList(type).indexOf(keystore.getConfig().getType()) < 0;
+	private <T extends Node> T ifNotType(T node, StoreType...type) {
+		boolean visible = keystore.getConfig().getType() == null || Arrays.asList(type).indexOf(keystore.getConfig().getType()) < 0;
 		node.setManaged(visible);
 		node.setVisible(visible);
 		return node;
@@ -180,7 +184,7 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 				});
 			}
 		});
-		ifType(newSecret, StoreType.JCEKS);
+		ifNotType(newSecret, StoreType.JKS, StoreType.PKCS12);
 		
 		Button newSelfSigned = new Button("New Self Signed");
 		newSelfSigned.addEventHandler(ActionEvent.ANY, new EventHandler<ActionEvent>() {
@@ -1109,9 +1113,19 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 
 	@Override
 	protected List<Property<?>> getCreateProperties() {
+		EnumeratedSimpleProperty<String> enumeratedSimpleProperty = new EnumeratedSimpleProperty<String>("Type", String.class, false);
+		for (StoreType type : StoreType.values()) {
+			enumeratedSimpleProperty.addAll(type.name());
+		}
+		// TODO: add all persistance providers (the id of the artifact)
+		for (KeyStorePersistanceArtifact persister : EAIResourceRepository.getInstance().getArtifacts(KeyStorePersistanceArtifact.class)) {
+			enumeratedSimpleProperty.addAll(persister.getId());
+		}
+		// TODO: retrofit create to take this into account
 		return Arrays.asList(
 //			new SimpleProperty<String>("Password", String.class, true), 
-			new SimpleProperty<StoreType>("Type", StoreType.class, false));
+			//new SimpleProperty<StoreType>("Type", StoreType.class, false));
+			enumeratedSimpleProperty);
 	}
 
 	@Override
@@ -1121,9 +1135,22 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 
 	@Override
 	protected KeyStoreArtifact newInstance(MainController controller, RepositoryEntry entry, Value<?>...values) throws IOException {
-		KeyStoreArtifact keystore = new KeyStoreArtifact(entry.getId(), entry.getContainer());
+		KeyStoreArtifact keystore = new KeyStoreArtifact(entry.getId(), entry.getContainer(), entry.getRepository());
 //		keystore.create(getValue("Password", String.class, values), getValue("Type", StoreType.class, values));
-		keystore.create(null, getValue("Type", StoreType.class, values));
+		String value = getValue("Type", String.class, values);
+		if (value == null) {
+			value = "JKS";
+		}
+		if (value.equals("JKS") || value.equals("JCEKS") || value.equals("PKCS12")) {
+			keystore.create(null, StoreType.valueOf(value));
+		}
+		else {
+			KeyStorePersistanceArtifact resolved = (KeyStorePersistanceArtifact) entry.getRepository().resolve(value);
+			if (resolved == null) {
+				throw new IllegalArgumentException("Can not resolve persistence manager: " + value);
+			}
+			keystore.create(null, resolved);
+		}
 		return keystore;
 	}
 
