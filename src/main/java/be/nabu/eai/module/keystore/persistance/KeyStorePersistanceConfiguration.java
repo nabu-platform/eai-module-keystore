@@ -9,7 +9,7 @@ import be.nabu.libs.services.api.DefinedService;
 
 @XmlRootElement(name = "keystorePersistance")
 public class KeyStorePersistanceConfiguration {
-	private DefinedService setService, getService, getAliasesService, deleteService;
+	private DefinedService setService, getService, getAllService, deleteService;
 
 	@InterfaceFilter(implement = "be.nabu.utils.security.basic.KeyStorePersistanceManager.set")
 	@XmlJavaTypeAdapter(value = ArtifactXMLAdapter.class)
@@ -29,14 +29,14 @@ public class KeyStorePersistanceConfiguration {
 		this.getService = getService;
 	}
 
-	@InterfaceFilter(implement = "be.nabu.utils.security.basic.KeyStorePersistanceManager.getAliases")
+	@InterfaceFilter(implement = "be.nabu.utils.security.basic.KeyStorePersistanceManager.getAll")
 	@XmlJavaTypeAdapter(value = ArtifactXMLAdapter.class)
-	public DefinedService getGetAliasesService() {
-		return getAliasesService;
+	public DefinedService getGetAllService() {
+		return getAllService;
 	}
 
-	public void setGetAliasesService(DefinedService getAliasesService) {
-		this.getAliasesService = getAliasesService;
+	public void setGetAllService(DefinedService getAllService) {
+		this.getAllService = getAllService;
 	}
 
 	@InterfaceFilter(implement = "be.nabu.utils.security.basic.KeyStorePersistanceManager.delete")

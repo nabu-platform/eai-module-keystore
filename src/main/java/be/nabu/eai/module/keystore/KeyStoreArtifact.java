@@ -11,6 +11,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.UUID;
 
+import be.nabu.eai.developer.util.Confirm;
 import be.nabu.eai.module.keystore.persistance.KeyStorePersistanceArtifact;
 import be.nabu.eai.repository.api.Repository;
 import be.nabu.eai.repository.artifacts.jaxb.JAXBArtifact;
@@ -57,6 +58,12 @@ public class KeyStoreArtifact extends JAXBArtifact<KeyStoreArtifactConfiguration
 		configuration.setAlias(getId());
 		configuration.setPassword(password == null ? UUID.randomUUID().toString().replace("-", "") : password);
 		configuration.setType(type == null ? StoreType.JKS : type);
+	}
+	
+	public boolean isDynamic() {
+		// if we are using external persistance, we assume that it is is dynamic
+		// this "should" mean that the end result is not part of the repository and accessible from a shared location
+		return getConfig().getPersister() != null;
 	}
 	
 	private Resource getConfigurationResource() throws IOException {

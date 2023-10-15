@@ -20,7 +20,7 @@ public class KeyStorePersistanceArtifact extends JAXBArtifact<KeyStorePersistanc
 		return POJOUtils.newProxy(KeyStorePersistanceManager.class, getRepository(), SystemPrincipal.ROOT, getRepository().getServiceRunner(), 
 			getConfig().getGetService(),
 			getConfig().getSetService(),
-			getConfig().getGetAliasesService(),
+			getConfig().getGetAllService(),
 			getConfig().getDeleteService()
 		);
 	}
