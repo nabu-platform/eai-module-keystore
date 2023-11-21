@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -75,6 +76,8 @@ import be.nabu.utils.security.SignatureType;
 import be.nabu.utils.security.StoreType;
 import be.nabu.utils.security.api.KeyStoreEntryType;
 import be.nabu.utils.security.api.ManagedKeyStore;
+import be.nabu.utils.security.basic.BasicManagedKeyStore;
+import be.nabu.utils.security.basic.NamedKeyStoreEntry;
 
 public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact, BaseArtifactGUIInstance<KeyStoreArtifact>> {
 
@@ -1078,36 +1081,69 @@ public class KeyStoreGUIManager extends BasePortableGUIManager<KeyStoreArtifact,
 	
 	private List<KeyStoreEntry> toEntries(ManagedKeyStore keystore) throws KeyStoreException, IOException {
 		List<KeyStoreEntry> entries = new ArrayList<KeyStoreEntry>();
-		for (String alias : keystore.getAliases()) {
+		// when using basic keystores, we don't want to do separate gets but rather a full get
+		KeyStoreHandler keyStoreHandler = new KeyStoreHandler(keystore.getUnsecuredKeyStore());
+		Map<String, X509Certificate[]> privateKeys = keyStoreHandler.getPrivateKeys();
+		for (String alias : privateKeys.keySet()) {
 			KeyStoreEntry entry = new KeyStoreEntry();
 			entry.setAlias(alias);
-
-			X509Certificate certificate = null;
-			// a certificate
-			if (keystore.getEntryType(alias) == KeyStoreEntryType.CERTIFICATE) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.TrustedCertificateEntry.class)
-				certificate = keystore.getCertificate(alias);
-				entry.setType("Certificate");
-			}
-			else if (keystore.getEntryType(alias) == KeyStoreEntryType.PRIVATE_KEY) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)
-				X509Certificate[] chain = keystore.getChain(alias);
-				certificate = chain[0];
-				entry.setChainLength(chain.length);
-				entry.setType("Private Key");
-			}
-			else if (keystore.getEntryType(alias) == KeyStoreEntryType.SECRET_KEY) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.SecretKeyEntry.class)
-				entry.setType("Secret Key");
-			}
-			else {
-				entry.setType("Unknown");
-			}
-			if (certificate != null) {
-				entry.setIssuer(certificate.getIssuerX500Principal().toString());
-				entry.setSubject(certificate.getSubjectX500Principal().toString());
-				entry.setNotAfter(certificate.getNotAfter());
-				entry.setNotBefore(certificate.getNotBefore());
-			}
+			X509Certificate certificate = privateKeys.get(alias)[0];
+			entry.setIssuer(certificate.getIssuerX500Principal().toString());
+			entry.setSubject(certificate.getSubjectX500Principal().toString());
+			entry.setNotAfter(certificate.getNotAfter());
+			entry.setNotBefore(certificate.getNotBefore());
+			entry.setChainLength(privateKeys.get(alias).length);
+			entry.setType("Private Key");
 			entries.add(entry);
 		}
+		Map<String, X509Certificate> certificates = keyStoreHandler.getCertificates();
+		for (String alias : certificates.keySet()) {
+			KeyStoreEntry entry = new KeyStoreEntry();
+			entry.setAlias(alias);
+			X509Certificate certificate = certificates.get(alias);
+			entry.setIssuer(certificate.getIssuerX500Principal().toString());
+			entry.setSubject(certificate.getSubjectX500Principal().toString());
+			entry.setNotAfter(certificate.getNotAfter());
+			entry.setNotBefore(certificate.getNotBefore());
+			entry.setType("Certificate");
+			entries.add(entry);
+		}
+		for (String alias : keyStoreHandler.getSecretKeys()) {
+			KeyStoreEntry entry = new KeyStoreEntry();
+			entry.setAlias(alias);
+			entry.setType("Secret Key");
+			entries.add(entry);
+		}
+//		for (String alias : keystore.getAliases()) {
+//			KeyStoreEntry entry = new KeyStoreEntry();
+//			entry.setAlias(alias);
+//
+//			X509Certificate certificate = null;
+//			// a certificate
+//			if (keystore.getEntryType(alias) == KeyStoreEntryType.CERTIFICATE) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.TrustedCertificateEntry.class)
+//				certificate = keystore.getCertificate(alias);
+//				entry.setType("Certificate");
+//			}
+//			else if (keystore.getEntryType(alias) == KeyStoreEntryType.PRIVATE_KEY) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.PrivateKeyEntry.class)
+//				X509Certificate[] chain = keystore.getChain(alias);
+//				certificate = chain[0];
+//				entry.setChainLength(chain.length);
+//				entry.setType("Private Key");
+//			}
+//			else if (keystore.getEntryType(alias) == KeyStoreEntryType.SECRET_KEY) {		// keystore.getKeyStore().entryInstanceOf(alias, KeyStore.SecretKeyEntry.class)
+//				entry.setType("Secret Key");
+//			}
+//			else {
+//				entry.setType("Unknown");
+//			}
+//			if (certificate != null) {
+//				entry.setIssuer(certificate.getIssuerX500Principal().toString());
+//				entry.setSubject(certificate.getSubjectX500Principal().toString());
+//				entry.setNotAfter(certificate.getNotAfter());
+//				entry.setNotBefore(certificate.getNotBefore());
+//			}
+//			entries.add(entry);
+//		}
 		return entries;
 	}
 
