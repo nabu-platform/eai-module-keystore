@@ -25,6 +25,7 @@ import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -92,6 +93,30 @@ public class Services {
 			default:
 				throw new RuntimeException("Invalid alias: " + alias);
 		}
+	}
+
+	@WebResult(name = "certificate")
+	public X509Certificate getCertificate(@NotNull @WebParam(name = "keystoreId") String keystoreId, @NotNull @WebParam(name = "certificateAlias") String alias) throws KeyStoreException, IOException {
+		KeyStoreArtifact keystore = executionContext.getServiceContext().getResolver(KeyStoreArtifact.class).resolve(keystoreId);
+		if (keystore == null) {
+			throw new IllegalArgumentException("No keystore found");
+		}
+		if (keystore.getKeyStore().getEntryType(alias) != KeyStoreEntryType.CERTIFICATE) {
+			throw new IllegalArgumentException("Invalid certificate alias: " + alias);
+		}
+		return keystore.getKeyStore().getCertificate(alias);
+	}
+
+	@WebResult(name = "certificateChain")
+	public X509Certificate[] getCertificateChain(@NotNull @WebParam(name = "keystoreId") String keystoreId, @NotNull @WebParam(name = "keyAlias") String alias) throws KeyStoreException, IOException {
+		KeyStoreArtifact keystore = executionContext.getServiceContext().getResolver(KeyStoreArtifact.class).resolve(keystoreId);
+		if (keystore == null) {
+			throw new IllegalArgumentException("No keystore found");
+		}
+		if (keystore.getKeyStore().getEntryType(alias) != KeyStoreEntryType.PRIVATE_KEY) {
+			throw new IllegalArgumentException("Invalid private key alias: " + alias);
+		}
+		return keystore.getKeyStore().getChain(alias);
 	}
 
 	private InputStream processSymmetric(InputStream input, String keystoreId, String keyAlias, Integer mode) throws KeyStoreException, IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
